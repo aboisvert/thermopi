@@ -1,8 +1,22 @@
-import rosencrantz, strutils, parseutils, db
+import rosencrantz, strutils, parseutils, db, times
 
 let gets = get[
-  path("/api/status")[
+  path("/")[
+    file("../web/src/thermopi.html")
+  ] ~ pathChunk("/static")[
+    dir("../web/src")
+  ] ~ pathChunk("/nimcache")[
+    dir("../web/nimcache")
+  ] ~ path("/api/status")[
     ok("GROOVY!")
+  ] ~ path("/api/recent")[
+    scope do:
+      let now = epochTime().int64
+      let before = now - (60 * 60) # seconds
+      var str = ""
+      for s in getSensorData(before, now):
+        str &= $s & "\r\n"
+      return ok($str)
   ]
 ]
 
