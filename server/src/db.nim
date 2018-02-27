@@ -3,6 +3,7 @@ import db_sqlite, times, sequtils, strutils
 let db = open("thermopi.db", nil, nil, nil)
 
 type SensorData* = object
+  rowid: int64
   instant: int64
   sensor: int
   temperature: float
@@ -22,12 +23,14 @@ proc getSensorData*(from1: int64, to1: int64): seq[SensorData] =
     from1,
     to1)
   results.mapIt(SensorData(
-    instant: it[0].parseBiggestInt,
-    sensor: it[1].parseInt,
-    temperature: it[2].parseFloat))
+    rowid: it[0].parseBiggestInt,
+    instant: it[1].parseBiggestInt,
+    sensor: it[2].parseInt,
+    temperature: it[3].parseFloat))
 
 proc `$`*(s: SensorData): string =
   "SensorData(" &
+    "rowid=" & $s.rowid &
     "instant=" & $s.instant &
     ", sensor=" & $s.sensor &
     ", temperature=" & $s.temperature & ")"
