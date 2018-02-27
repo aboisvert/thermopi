@@ -31,6 +31,6 @@ proc getSensorData*(from1: int64, to1: int64): seq[SensorData] =
 proc `$`*(s: SensorData): string =
   "SensorData(" &
     "rowid=" & $s.rowid &
-    "instant=" & $s.instant &
+    "instant=" & format(getLocalTime(fromSeconds(s.instant)), "d MMMM yyyy HH:mm:ss") &
     ", sensor=" & $s.sensor &
     ", temperature=" & $s.temperature & ")"
