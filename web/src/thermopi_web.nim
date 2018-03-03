@@ -11,13 +11,22 @@ type
     id: int
     name: cstring
 
-# Chart.js constructor
+# Chart.js ffi
 type Chart = JsObject
-proc newChart(canvas: Element, options: JsonNode): Chart {.importcpp: "new Chart(@)" .}
+proc newChart(canvas: Element, options: JsonNode): Chart {.importcpp: "new Chart(@)".}
+
+# Moment.js ffi
+type Moment = JsObject
+type MomentStatic = ref object
+var moment {.importc, noDecl.}: MomentStatic
+proc unix(moment: MomentStatic, epoch: int): Moment {.importcpp: "#.unix(#)".}
+proc format(moment: Moment, fmt: cstring): cstring {.importcpp: "#.format(#)".}
+
+proc fromUnix(epoch: int): Moment =
+  moment.unix(epoch)
 
 const
-  httpApi = "http://thermopi:8080/api"
-  contentSuffix = cstring"content"
+  httpApi = cstring"http://thermopi:8080/api"
 
 let
   LF = cstring"" & "\n"
@@ -57,7 +66,7 @@ proc sensorsLoaded(httpStatus: int, response: cstring) =
     let s = Sensor(id: id, name: name)
     sensors.add(s)
   redraw(kxi)
- 
+
 proc fakeSensorsLoaded() =
   ## generates dummy data when testing witout a live server
   var str = cstring""
@@ -93,13 +102,13 @@ proc temperatureLoaded(httpStatus: int, response: cstring, sensor: int) =
   for i in 0 ..< lines.len div 2:
     let epoch: int = lines[i*2].parseInt
     let temp: float = lines[i*2+1].parseFloat
-    labels.add(epoch.toCstr)
+    labels.add(fromUnix(epoch).format(cstring"dddd, h:mm a"))
     temperatures.add(temp)
   updateChart(labels, temperatures)
 
 proc temperatureLoaded(sensor: int): proc (httpStatus: int, response: cstring) =
   ## returns a closure that curries `sensor` parameter
-  proc (httpStatus: int, response: cstring) =
+  result = proc (httpStatus: int, response: cstring) =
     temperatureLoaded(httpStatus, response, sensor)
 
 proc fakeTemperatureLoaded() =
