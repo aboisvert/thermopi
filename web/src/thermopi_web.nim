@@ -27,6 +27,7 @@ proc fromUnix(epoch: int): Moment =
 
 const
   httpApi = cstring"http://thermopi:8080/api"
+#  httpApi = cstring"http://localhost:8080/api"
 
 let
   LF = cstring"" & "\n"
@@ -37,7 +38,7 @@ var
   currentSensor: int = 1     # currently selected sensor
   sensors: seq[Sensor] = @[] # list of sensors
 
-  stubSensors = true # set to true when testing without a live server
+  stubSensors = false # set to true when testing without a live server
   initialized = false # set to true after the first postRender()
   chart: Chart        # current temperature chart
 

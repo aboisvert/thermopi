@@ -1,22 +1,45 @@
 import rosencrantz, strutils, parseutils, db, times
 
+proc serializeSensorDataHuman(data: seq[SensorData]): string =
+  result = ""
+  for s in data:
+    result &= $s & "\r\n"
+
+proc serializeSensorData(data: seq[SensorData]): string =
+  result = ""
+  for s in data:
+    result &= $s.instant & "\n"
+    result &= $s.temperature & "\n"
+
 let gets = get[
   path("/")[
     file("../web/src/thermopi.html")
   ] ~ pathChunk("/static")[
     dir("../web/src")
   ] ~ pathChunk("/nimcache")[
-    dir("../web/nimcache")
+    dir("../web/src/nimcache")
   ] ~ path("/api/status")[
     ok("GROOVY!")
   ] ~ path("/api/recent")[
     scope do:
       let now = epochTime().int64
-      let before = now - (60 * 60) # seconds
+      let before = now - (60 * 60 * 12) # seconds
+      let body = serializeSensorDataHuman(getSensorData(before, now))
+      return ok(body)
+  ] ~ path("/api/sensors")[
+    scope do:
       var str = ""
-      for s in getSensorData(before, now):
-        str &= $s & "\r\n"
+      for s in getSensors():
+        str &= $(s.id) & "\n"
+        str &= $s.name & "\n"
       return ok($str)
+  ] ~ pathChunk("/api/temperature")[
+      intSegment(proc(sensorId: int): auto =
+        let now = epochTime().int64
+        let before = now - (60 * 60 * 24 * 7) # seconds
+        let body = serializeSensorData(getSensorData(sensorId, before, now))
+        return ok(body)
+      )
   ]
 ]
 
