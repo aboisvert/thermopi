@@ -156,7 +156,7 @@ proc postRender(data: RouterData) =
       discard setTimeout(fakeTemperatureLoaded, 0)
     else:
       ajaxGet(httpApi & "/sensors", @[], sensorsLoaded)
-      ajaxGet(httpApi & "/current/" & $currentSensor, @[], currentTemperatureLoaded(currentSensor))
+      ajaxGet(httpApi & "/temperature/" & $currentSensor, @[], temperatureLoaded(currentSensor))
       loadCurrentTemperature()
 
   initialized = true
