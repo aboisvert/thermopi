@@ -1,151 +1,133 @@
-
-import karax / [vdom, karax, karaxdsl, jstrutils, compact, localstorage]
+import karax / [vdom, kdom, karax, karaxdsl, kajax, jstrutils, compact, jjson, jdict]
+import jsffi except `&`
+import random
+import strutils
 
 type
-  Filter = enum
-    all, active, completed
+  Views = enum
+    Main
 
-var
-  selectedEntry = -1
-  filter: Filter
-  entriesLen: int
+  Sensor = object
+    id: int
+    name: cstring
+
+# Chart.js ffi
+type Chart = JsObject
+proc newChart(canvas: Element, options: JsonNode): Chart {.importcpp: "new Chart(@)".}
+
+# Moment.js ffi
+type Moment = JsObject
+type MomentStatic = ref object
+var moment {.importc, noDecl.}: MomentStatic
+proc unix(moment: MomentStatic, epoch: int): Moment {.importcpp: "#.unix(#)".}
+proc format(moment: Moment, fmt: cstring): cstring {.importcpp: "#.format(#)".}
+
+proc fromUnix(epoch: int): Moment =
+  moment.unix(epoch)
 
 const
-  contentSuffix = cstring"content"
-  completedSuffix = cstring"completed"
-  lenSuffix = cstring"entriesLen"
+  httpApi = cstring"http://thermopi:8080/api"
 
-proc getEntryContent(pos: int): cstring =
-  result = getItem(&pos & contentSuffix)
-  if result == cstring"null":
-    result = nil
+let
+  LF = cstring"" & "\n"
 
-proc isCompleted(pos: int): bool =
-  var value = getItem(&pos & completedSuffix)
-  result = value == cstring"true"
+var
+  currentView = Main
 
-proc setEntryContent(pos: int, content: cstring) =
-  setItem(&pos & contentSuffix, content)
+  currentSensor: int = 1     # currently selected sensor
+  sensors: seq[Sensor] = @[] # list of sensors
 
-proc markAsCompleted(pos: int, completed: bool) =
-  setItem(&pos & completedSuffix, &completed)
-
-proc addEntry(content: cstring, completed: bool) =
-  setEntryContent(entriesLen, content)
-  markAsCompleted(entriesLen, completed)
-  inc entriesLen
-  setItem(lenSuffix, &entriesLen)
-
-proc updateEntry(pos: int, content: cstring, completed: bool) =
-  setEntryContent(pos, content)
-  markAsCompleted(pos, completed)
-
-proc onTodoEnter(ev: Event; n: VNode) =
-  addEntry(n.value, false)
-  n.value = ""
-
-proc removeHandler(ev: Event; n: VNode) =
-  updateEntry(n.index, cstring(nil), false)
-
-proc editHandler(ev: Event; n: VNode) =
-  selectedEntry = n.index
-
-proc focusLost(ev: Event; n: VNode) = selectedEntry = -1
-
-proc editEntry(ev: Event; n: VNode) =
-  setEntryContent(n.index, n.value)
-  selectedEntry = -1
-
-proc toggleEntry(ev: Event; n: VNode) =
-  let id = n.index
-  markAsCompleted(id, not isCompleted(id))
-
-proc onAllDone(ev: Event; n: VNode) =
-  clear()
-  selectedEntry = -1
-
-proc clearCompleted(ev: Event, n: VNode) =
-  for i in 0..<entriesLen:
-    if isCompleted(i): setEntryContent(i, nil)
-
-proc toClass(completed: bool): cstring =
-  (if completed: cstring"completed" else: cstring(nil))
-
-proc selected(v: Filter): cstring =
-  (if filter == v: cstring"selected" else: cstring(nil))
-
-proc createEntry(id: int; d: cstring; completed, selected: bool): VNode {.compact.} =
-  result = buildHtml(tr):
-    li(class=toClass(completed)):
-      if not selected:
-        tdiv(class = "view"):
-          input(class = "toggle", `type` = "checkbox", checked = toChecked(completed),
-                onclick=toggleEntry, index=id)
-          label(onDblClick=editHandler, index=id):
-            text d
-          button(class = "destroy", index=id, onclick=removeHandler)
-      else:
-        input(class = "edit", name = "title", index=id,
-          onblur = focusLost,
-          onkeyupenter = editEntry, value = d, setFocus=true)
-
-proc makeFooter(entriesCount, completedCount: int): VNode =
-  result = buildHtml(footer(class = "footer")):
-    span(class = "todo-count"):
-      strong:
-        text(&entriesCount)
-      text cstring" item" & &(if entriesCount != 1: "s left" else: " left")
-    ul(class = "filters"):
-      li:
-        a(class = selected(all), href = "#/"):
-          text "All"
-      li:
-        a(class = selected(active), href = "#/active"):
-          text "Active"
-      li:
-        a(class = selected(completed), href = "#/completed"):
-          text "Completed"
-    button(class = "clear-completed", onclick = clearCompleted):
-      text "Clear completed (" & &completedCount & ")"
-
-proc makeHeader(): VNode {.compact.} =
-  result = buildHtml(header(class = "header")):
-    h1:
-      text "todos"
-    input(class = "new-todo", placeholder="What needs to be done?", name = "newTodo",
-          onkeyupenter = onTodoEnter, setFocus)
+  stubSensors = true # set to true when testing without a live server
+  initialized = false # set to true after the first postRender()
+  chart: Chart        # current temperature chart
 
 proc createDom(data: RouterData): VNode =
-  if data.hashPart == "#/": filter = all
-  elif data.hashPart == "#/completed": filter = completed
-  elif data.hashPart == "#/active": filter = active
-  result = buildHtml(tdiv(class="todomvc-wrapper")):
-    section(class = "todoapp"):
-      makeHeader()
-      section(class = "main"):
-        input(class = "toggle-all", `type` = "checkbox", name = "toggle")
-        label(`for` = "toggle-all", onclick = onAllDone):
-          text "Mark all as complete"
-        var entriesCount = 0
-        var completedCount = 0
-        ul(class = "todo-list"):
-          #for i, d in pairs(entries):
-          for i in 0..entriesLen-1:
-            var d0 = getEntryContent(i)
-            var d1 = isCompleted(i)
-            if d0 != nil:
-              let b = case filter
-                      of all: true
-                      of active: not d1
-                      of completed: d1
-              if b:
-                createEntry(i, d0, d1, i == selectedEntry)
-              inc completedCount, ord(d1)
-              inc entriesCount
-      makeFooter(entriesCount, completedCount)
+  ## main renderer
+  case currentView
+  of Main:
+    buildHtml(tdiv(class="thermopi-wrapper")):
+      section(class = "thermopi"):
+        section(class = "sensors", id = "sensors"):
+          ol:
+            for s in sensors:
+              li(value = $s.id):
+                a(href="#" & $s.name):
+                  text $s.name
+        section(class = "graph", id = "graph"):
+          canvas(id = "chart", width="400", height="400")
 
-if hasItem(lenSuffix):
-  entriesLen = parseInt getItem(lenSuffix)
-else:
-  entriesLen = 0
-setRenderer createDom
+proc sensorsLoaded(httpStatus: int, response: cstring) =
+  ## ajaxGet callback
+  sensors = @[]
+  let lines: seq[cstring] = response.split(LF)
+  for i in 0 ..< lines.len div 2:
+    let id: int = lines[i*2].parseInt
+    let name: cstring = lines[i*2+1]
+    let s = Sensor(id: id, name: name)
+    sensors.add(s)
+  redraw(kxi)
+
+proc fakeSensorsLoaded() =
+  ## generates dummy data when testing witout a live server
+  var str = cstring""
+  str = str & $1 & LF
+  str = str & "Living Room" & LF
+  sensorsLoaded(200, str)
+
+proc updateChart(labels: openarray[cstring], temperatures: openarray[float]) =
+  let ctx = document.getElementById(cstring"chart")
+  let options = %*{
+    "type": "line",
+    "data": {
+        "labels": labels,
+        "datasets": [{
+            "label": "Temperature",
+            "data": temperatures,
+            "backgroundColor": "rgba(255, 99, 32, 0.2)",
+            "borderColor": "rgba(255,99,132,1)",
+            "borderWidth": 1
+        }]
+    },
+    "options": {
+        "responsive": false
+    }
+  }
+  chart = newChart(ctx, options)
+
+proc temperatureLoaded(httpStatus: int, response: cstring, sensor: int) =
+  ## ajaxGet() callback
+  var labels: seq[cstring] = @[]
+  var temperatures: seq[float] = @[]
+  let lines: seq[cstring] = response.split(LF)
+  for i in 0 ..< lines.len div 2:
+    let epoch: int = lines[i*2].parseInt
+    let temp: float = lines[i*2+1].parseFloat
+    labels.add(fromUnix(epoch).format(cstring"dddd, h:mm a"))
+    temperatures.add(temp)
+  updateChart(labels, temperatures)
+
+proc temperatureLoaded(sensor: int): proc (httpStatus: int, response: cstring) =
+  ## returns a closure that curries `sensor` parameter
+  result = proc (httpStatus: int, response: cstring) =
+    temperatureLoaded(httpStatus, response, sensor)
+
+proc fakeTemperatureLoaded() =
+  ## generates dummy data when testing witout a live server
+  var response = cstring""
+  for i in 0 ..< 100:
+    response = response & $(1520047842 + i * 10) & LF
+    response = response & $(10.float + random(10).float + random(10) / 10) & LF
+  temperatureLoaded(httpStatus = 200, response, sensor = 1)
+
+proc postRender(data: RouterData) =
+  if not initialized:
+    if stubSensors:
+      discard setTimeout(fakeSensorsLoaded, 0)
+      discard setTimeout(fakeTemperatureLoaded, 0)
+    else:
+      ajaxGet(httpApi & "/sensors", @[], sensorsLoaded)
+      ajaxGet(httpApi & "/temperature/" & $currentSensor, @[], temperatureLoaded(currentSensor))
+
+  initialized = true
+
+setRenderer createDom, "ROOT", postRender
