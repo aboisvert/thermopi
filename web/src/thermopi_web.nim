@@ -38,6 +38,9 @@ var
   currentSensor: int = 1     # currently selected sensor
   sensors: seq[Sensor] = @[] # list of sensors
 
+  currentTime: cstring
+  currentTemperature: float
+
   stubSensors = false # set to true when testing without a live server
   initialized = false # set to true after the first postRender()
   chart: Chart        # current temperature chart
@@ -54,6 +57,11 @@ proc createDom(data: RouterData): VNode =
               li(value = $s.id):
                 a(href="#" & $s.name):
                   text $s.name
+        section(class = "current", ):
+          tdiv(id="currentTime"):
+            text currentTime
+          tdiv(id="currentTemperature"):
+            text $currentTemperature
         section(class = "graph", id = "graph"):
           canvas(id = "chart", width="400", height="400")
 
@@ -112,6 +120,27 @@ proc temperatureLoaded(sensor: int): proc (httpStatus: int, response: cstring) =
   result = proc (httpStatus: int, response: cstring) =
     temperatureLoaded(httpStatus, response, sensor)
 
+proc currentTemperatureLoaded(httpStatus: int, response: cstring, sensor: int) =
+  ## ajaxGet() callback
+  let lines: seq[cstring] = response.split(LF)
+  let epoch: int = lines[0].parseInt
+  let temperature: float = lines[1].parseFloat
+  #document.getElementById(cstring"currentTime").textContent = fromUnix(epoch).format(cstring"dddd, h:mm a")
+  #document.getElementById(cstring"currentTemperature").textContent = temperature
+  currentTime = fromUnix(epoch).format(cstring"dddd, h:mm a")
+  currentTemperature = temperature
+  redraw(kxi)
+
+proc currentTemperatureLoaded(sensor: int): proc (httpStatus: int, response: cstring) =
+  ## returns a closure that curries `sensor` parameter
+  result = proc (httpStatus: int, response: cstring) =
+    currentTemperatureLoaded(httpStatus, response, sensor)
+
+
+proc loadCurrentTemperature() =
+  ajaxGet(httpApi & "/current/" & $currentSensor, @[], currentTemperatureLoaded(currentSensor))
+  discard setTimeout(loadCurrentTemperature, 30000)
+
 proc fakeTemperatureLoaded() =
   ## generates dummy data when testing witout a live server
   var response = cstring""
@@ -127,7 +156,8 @@ proc postRender(data: RouterData) =
       discard setTimeout(fakeTemperatureLoaded, 0)
     else:
       ajaxGet(httpApi & "/sensors", @[], sensorsLoaded)
-      ajaxGet(httpApi & "/temperature/" & $currentSensor, @[], temperatureLoaded(currentSensor))
+      ajaxGet(httpApi & "/current/" & $currentSensor, @[], currentTemperatureLoaded(currentSensor))
+      loadCurrentTemperature()
 
   initialized = true
 

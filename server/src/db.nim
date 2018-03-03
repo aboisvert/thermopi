@@ -49,6 +49,11 @@ proc getSensorData*(sensor: int, from1: int64, to1: int64): seq[SensorData] =
     to1)
   rowsToSensorData(rows)
 
+proc getLatestSensorData*(sensor: int): seq[SensorData] =
+  let rows = db.getAllRows(
+    sql"SELECT * from sensor_data WHERE (sensor_id = ?) ORDER BY instant DESC LIMIT 1", sensor)
+  rowsToSensorData(rows)
+
 proc `$`*(s: SensorData): string =
   "SensorData(" &
     "rowid=" & $s.rowid &

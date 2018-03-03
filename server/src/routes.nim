@@ -40,6 +40,11 @@ let gets = get[
         let body = serializeSensorData(getSensorData(sensorId, before, now))
         return ok(body)
       )
+  ] ~ pathChunk("/api/current")[
+      intSegment(proc(sensorId: int): auto =
+        let body = serializeSensorData(getLatestSensorData(sensorId))
+        return ok(body)
+      )
   ]
 ]
 
