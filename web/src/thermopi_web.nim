@@ -90,6 +90,8 @@ proc createDom(data: RouterData): VNode =
               text "  [?????]"
           tdiv(id="currentTemperature"):
             text format(currentTemperature, currentUnit)
+          tdiv():
+            text ""
 
         section(class = "window"):
           text "Window"
