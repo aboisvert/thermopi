@@ -1,4 +1,6 @@
-import rosencrantz, strutils, parseutils, db, times
+import db
+import rosencrantz
+import parseutils, strutils, strtabs, times
 
 proc serializeSensorDataHuman(data: seq[SensorData]): string =
   result = ""
@@ -34,11 +36,16 @@ let gets = get[
         str &= $s.name & "\n"
       return ok($str)
   ] ~ pathChunk("/api/temperature")[
-      intSegment(proc(sensorId: int): auto =
-        let now = epochTime().int64
-        let before = now - (60 * 60 * 24 * 7) # seconds
-        let body = serializeSensorData(getSensorData(sensorId, before, now))
-        return ok(body)
+      queryString(proc(s: StringTableRef): auto =
+        var
+          startParam = s["start"]
+          endParam = s["end"]
+        intSegment(proc(sensorId: int): auto =
+          let start = if startParam == nil: epochTime().int64 else: startParam.parseInt
+          let `end` = if endParam == nil: start - (60 * 60 * 24) else: endParam.parseInt # seconds, 24 hours by default
+          let body = serializeSensorData(getSensorData(sensorId, start, `end`))
+          return ok(body)
+        )
       )
   ] ~ pathChunk("/api/current")[
       intSegment(proc(sensorId: int): auto =
