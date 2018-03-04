@@ -16,8 +16,8 @@ type
     T1h, T12h, T24h, T48h, T7days, T30days
 
 const
-#  httpApi = cstring"http://thermopi:8080/api"
-  httpApi = cstring"http://localhost:8080/api"
+  httpApi = cstring"http://thermopi:8080/api"
+#  httpApi = cstring"http://localhost:8080/api"
 
 let
   LF = cstring"" & "\n"
