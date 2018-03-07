@@ -1,4 +1,4 @@
-import karax / [vdom, kdom, karax, karaxdsl, kajax, jstrutils, compact, jjson, jdict]
+import karax / [vdom, vstyles, kdom, karax, karaxdsl, kajax, jstrutils, compact, jjson, jdict]
 import jsffi except `&`
 import random, sequtils, strutils, times
 import chartjs, momentjs, url_js
@@ -34,7 +34,7 @@ var
 
   currentUnit = Fahrenheit
 
-  stubSensors = false # set to true when testing without a live server
+  stubSensors = true # set to true when testing without a live server
   initialized = false # set to true after the first postRender()
 
   chart: Chart # temperature chart
@@ -71,61 +71,89 @@ proc createDom(data: RouterData): VNode =
   elif data.hashPart == "#fahrenheit": currentUnit = Fahrenheit
   if currentUnit != beforeUnit: loadChartData()
 
+  for s in sensors:
+    if cstring"#" & s.name == data.hashPart:
+      currentSensor = s.id
+      loadChartData()
+
   case currentView
   of Main:
     buildHtml(tdiv(class="thermopi-wrapper")):
-      section(class = "thermopi"):
 
-        section(class = "sensors", id = "sensors"):
-          ol:
-            for s in sensors:
-              li(value = $s.id):
-                a(href="#" & $s.name):
-                  text $s.name
+      # hero
+      section(class = "hero is-medium is-dark"):
+        tdiv(class = "container"):
+          h1(class = "title"):
+            text "ThermoPi"
 
-        section(class = "current", ):
-          tdiv(id="currentTime"):
-            text fromUnix(currentTime).format(cstring"dddd, h:mm a")
-            if currentTime < epochTime().int - 600:
-              text "  [?????]"
-          tdiv(id="currentTemperature"):
-            text format(currentTemperature, currentUnit)
-          tdiv():
-            text ""
+      # columns
+      section():
+        tdiv(class = "columns is-centered"):
 
-        section(class = "window"):
-          text "Window"
-          text " "
-          a(href="?window=1h"):
-            text "1h"
-          text " "
-          a(href="?window=12h"):
-            text "12h"
-          text " "
-          a(href="?window=24h"):
-            text "24h"
-          text " "
-          a(href="?window=48h"):
-            text "48h"
-          text " "
-          a(href="?window=7days"):
-            text "7d"
-          text " "
-          a(href="?window=30days"):
-            text "30d"
+          tdiv(class = "column"):
+            tdiv(class = "card"):
+              tdiv(class = "card-content"):
+                section(class = "sensors", id = "sensors"):
+                  tdiv(class = "container"):
+                    ol:
+                      for s in sensors:
+                        li(value = $s.id):
+                          a(href="#" & $s.name):
+                            text $s.name
 
-        section(class = "graph", id = "graph"):
-          canvas(id = "chart", width="400", height="400")
+          tdiv(class = "column"):
+            tdiv(class = "card"):
+              tdiv(class = "card-content has-text-centered"):
+                section(class = "current-temperature is-size-1"):
+                  tdiv(id="currentTemperature"):
+                    text format(currentTemperature, currentUnit)
+                section(class = "current-time"):
+                  tdiv(id="currentTime"):
+                    text fromUnix(currentTime).format(cstring"dddd, h:mm a")
+                    if currentTime < epochTime().int - 600:
+                      text "  [?????]"
+                section(class = "temperature-units"):
+                  tdiv(id="units"):
+                    case currentUnit
+                    of Celcius:
+                      a(href="#fahrenheit"):
+                        text "[Switch to Fahrenheit]"
+                    of Fahrenheit:
+                      a(href="#celcius"):
+                        text "[Switch to Celcius]"
 
-        section(class = "units"):
-          case currentUnit
-          of Celcius:
-            a(href="#fahrenheit"):
-              text "Switch to Fahrenheit"
-          of Fahrenheit:
-            a(href="#celcius"):
-              text "Switch to Celcius"
+          tdiv(class = "column"):
+            tdiv(class = "card"):
+              tdiv(class = "card-content"):
+                text ""
 
+        tdiv(class = "columns is-centered"):
+          tdiv(class = "column has-text-centered"):
+
+            section(class = "window"):
+              text "Window"
+              text " "
+              a(href="?window=1h"):
+                text "1h"
+              text " "
+              a(href="?window=12h"):
+                text "12h"
+              text " "
+              a(href="?window=24h"):
+                text "24h"
+              text " "
+              a(href="?window=48h"):
+                text "48h"
+              text " "
+              a(href="?window=7days"):
+                text "7d"
+              text " "
+              a(href="?window=30days"):
+                text "30d"
+
+            section(class = "graph", id = "graph"):
+              tdiv(class="chart-container", id="chart-div", style = style(StyleAttr.position, cstring"relative")): #position: relative; height:40vh; width:80vw"):
+                canvas(id = "chart")
 
 proc sensorsLoaded(httpStatus: int, response: cstring) =
   ## ajaxGet callback
@@ -141,8 +169,12 @@ proc sensorsLoaded(httpStatus: int, response: cstring) =
 proc fakeSensorsLoad() =
   ## generates dummy data when testing witout a live server
   var str = cstring""
-  str = str & $1 & LF
-  str = str & "Living Room" & LF
+  str &= $1 & LF
+  str &= "Living Room" & LF
+  str &= $2& LF
+  str &= "Garage" & LF
+  str &= $3 & LF
+  str &= "Exterior" & LF
   sensorsLoaded(200, str)
 
 proc loadSensors() =
@@ -159,17 +191,38 @@ proc updateChart(labels: openarray[cstring], temperatures: seq[float]) =
   let options = %*{
     "type": "line",
     "data": {
-        "labels": labels,
-        "datasets": [{
-            "label": "Temperature",
-            "data": data,
-            "backgroundColor": "rgba(255, 99, 32, 0.2)",
-            "borderColor": "rgba(255,99,132,1)",
-            "borderWidth": 1
+      "labels": labels,
+      "datasets": [{
+          "label": "Temperature",
+          "data": data,
+          "backgroundColor": "rgba(255, 99, 32, 0.2)",
+          "borderColor": "rgba(255,99,132,1)",
+          "borderWidth": 1
         }]
     },
     "options": {
-        "responsive": false
+      "responsive": true,
+      "maintainAspectRatio": true,
+      "legend": {
+        "display": false
+      },
+      "scales": {
+        "xAxes": [{
+          "display": true,
+          "scaleLabel": {
+            "display": true,
+            "labelString": "Time"
+          }
+        }],
+        "yAxes": [{
+          "display": true,
+          "scaleLabel": {
+            "display": true,
+            "labelString": "Temperature"
+          }
+        }]
+      }
+
     }
   }
   chart = newChart(ctx, options)
@@ -261,9 +314,8 @@ proc postRender(data: RouterData) =
     loadSensors()
     loadChartData()
     periodicLoadCurrentTemperature()
-
-      
-
   initialized = true
 
 setRenderer createDom, "ROOT", postRender
+
+setForeignNodeId "chart-div"
