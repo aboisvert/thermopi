@@ -85,8 +85,10 @@ proc createDom(data: RouterData): VNode =
   var part = cstring""
   if data.hashPart.len > 1:
     part = data.hashPart.split(cstring"#")[1]
+  echo "part: " & part
 
   let hashSensor = getSensorByName(part)
+  echo "hashSensor: " & hashSensor
   if currentSensor != hashSensor.id:
     currentSensor = hashSensor.id
     loadCurrentTemperature()
