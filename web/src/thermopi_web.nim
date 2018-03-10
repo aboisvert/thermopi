@@ -82,7 +82,7 @@ proc createDom(data: RouterData): VNode =
   elif data.hashPart == "#fahrenheit": currentUnit = Fahrenheit
   if currentUnit != beforeUnit: loadChartData()
 
-  var part = ""
+  var part = cstring""
   if data.hashPart.len > 1:
     part = data.hashPart.split(cstring"#")[1]
 
