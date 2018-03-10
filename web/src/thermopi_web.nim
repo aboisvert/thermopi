@@ -89,7 +89,7 @@ proc createDom(data: RouterData): VNode =
 
   if part != "":
     let hashSensor = getSensorByName(part)
-    echo "hashSensor: " & &hashSensor
+    echo "hashSensor: " & $hashSensor
     if hashSensor.id != 0 and currentSensor != hashSensor.id:
       currentSensor = hashSensor.id
       loadCurrentTemperature()
