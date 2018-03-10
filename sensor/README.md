@@ -11,3 +11,10 @@ The sensor program is basically a simple loop,
 2) Display the temperature on LCD 
 3) Send the temperature reading to the server (HTTP POST)
 4) Sleep for ~1 minute and repeat.
+
+
+
+
+# Driver for CH340G-based NodeCMU 340G (Arduino clone)
+
+https://github.com/adrianmihalko/ch340g-ch34g-ch34x-mac-os-x-driver
