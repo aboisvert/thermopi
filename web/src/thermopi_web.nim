@@ -34,7 +34,7 @@ var
 
   currentUnit = Fahrenheit
 
-  stubSensors = true # set to true when testing without a live server
+  stubSensors = false # set to true when testing without a live server
   initialized = false # set to true after the first postRender()
 
   chart: Chart # temperature chart
@@ -73,8 +73,9 @@ proc createDom(data: RouterData): VNode =
 
   for s in sensors:
     if cstring"#" & s.name == data.hashPart:
-      currentSensor = s.id
-      loadChartData()
+      if currentSensor != s.id:
+        currentSensor = s.id
+        loadChartData()
 
   case currentView
   of Main:
