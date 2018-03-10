@@ -43,6 +43,17 @@ var
 proc loadChartData()
 proc loadCurrentTemperature()
 
+proc getCurrentSensor(): Sensor =
+  for s in sensors:
+    if s.id == currentSensor: return s
+
+proc setCurrentSensor(s: Sensor) =
+  currentSensor = s.id
+
+proc getSensorByName(name: cstring): Sensor =
+  for s in sensors:
+    if s.name == name: return s
+
 proc durationInSeconds(w: Window): int = 
   case w
   of T1h:  60 * 60
@@ -71,12 +82,13 @@ proc createDom(data: RouterData): VNode =
   elif data.hashPart == "#fahrenheit": currentUnit = Fahrenheit
   if currentUnit != beforeUnit: loadChartData()
 
-  for s in sensors:
-    if cstring"#" & s.name == data.hashPart:
-      if currentSensor != s.id:
-        currentSensor = s.id
-        loadCurrentTemperature()
-        loadChartData()
+  let part = data.hashPart.split("#")[1]
+
+  let hashSensor = getSensorByName(part)
+  if currentSensor != hashSensor.id:
+    currentSensor = hashSensor.id
+    loadCurrentTemperature()
+    loadChartData()
 
   case currentView
   of Main:
@@ -102,10 +114,14 @@ proc createDom(data: RouterData): VNode =
                         li(value = $s.id):
                           a(href="#" & $s.name):
                             text $s.name
+                            if currentSensor == s.id:
+                              text " [*]"
 
           tdiv(class = "column"):
             tdiv(class = "card"):
               tdiv(class = "card-content has-text-centered"):
+                section(class = "current-sensor"):
+                  text getCurrentSensor().name
                 section(class = "current-temperature is-size-1"):
                   tdiv(id="currentTemperature"):
                     text format(currentTemperature, currentUnit)
