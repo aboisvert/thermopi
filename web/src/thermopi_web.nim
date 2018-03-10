@@ -87,12 +87,13 @@ proc createDom(data: RouterData): VNode =
     part = data.hashPart.split(cstring"#")[1]
   echo "part: " & part
 
-  let hashSensor = getSensorByName(part)
-  echo "hashSensor: " & hashSensor
-  if currentSensor != hashSensor.id:
-    currentSensor = hashSensor.id
-    loadCurrentTemperature()
-    loadChartData()
+  if part != "":
+    let hashSensor = getSensorByName(part)
+    echo "hashSensor: " & hashSensor
+    if hashSensor.id != 0 and currentSensor != hashSensor.id:
+      currentSensor = hashSensor.id
+      loadCurrentTemperature()
+      loadChartData()
 
   case currentView
   of Main:
