@@ -41,7 +41,7 @@ var
 
 ## Forward definitions
 proc loadChartData()
-
+proc loadCurrentTemperature()
 
 proc durationInSeconds(w: Window): int = 
   case w
@@ -75,6 +75,7 @@ proc createDom(data: RouterData): VNode =
     if cstring"#" & s.name == data.hashPart:
       if currentSensor != s.id:
         currentSensor = s.id
+        loadCurrentTemperature()
         loadChartData()
 
   case currentView
