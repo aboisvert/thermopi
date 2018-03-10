@@ -22,6 +22,8 @@ proc insertSensorData*(instant: int64, sensor: int, temperature: float): int64 =
   db.tryInsertId(
     sql"INSERT INTO sensor_data (instant, sensor_id, temperature) VALUES (?,?,?)",
     instant, sensor, temperature)
+  db.exec(sql"COMMIT")
+
 
 proc insertSensorData*(sensor: int, temperature: float): int64 =
   let epoch = epochTime().int64
