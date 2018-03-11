@@ -5,7 +5,7 @@ import jsffi
 ## Minimal untyped Chart.js FFI
 ##
 ## (should work with Chart.js v2.x -- tested with Charts.js 2.7.2)
-## 
+##
 ## See http://www.chartjs.org/
 
 type Chart* = JsObject
@@ -15,16 +15,16 @@ proc newChart*(canvas: Element, options: JsonNode): Chart {.importcpp: "new Char
 
 ##
 ## Examples
-## 
+##
 
 {.push hint[XDeclaredButNotUsed]: off.}
 
 ## Assumes you have:
-## 
+##
 ##   <script type="text/javascript" src="Chart.min.js" />
-## 
+##
 ## and
-## 
+##
 ##   <canvas id="myChart" width="400" height="400"></canvas>
 ##
 
