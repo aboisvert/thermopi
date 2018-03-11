@@ -1,0 +1,54 @@
+
+Temperature Control state machine
+
+Low-level (Allowable range)
+===========================
+
+Two inputs:
+  1) Heating or Cooling mode
+  2) Desired Temperature (e.g. 65F)
+
+General logic:
+- if heating mode and current temperature < desired, turn on heating
+- if cooling mode and current temperature > desired turn on AC
+
+Considerations:
+- allow for hystheresis (+/- some degrees)
+- allow for duty cycle limit (no on/off within X time period)
+
+
+High-Level (Programming)
+========================
+
+Level 0: Manual Control
+  - fixed desired low/high temperatures
+
+Level 1: Weekday/Weekend scheduling, with up to 4 periods per day
+  - separate schedules for heating (desired lows) and cooling (desired highs) modes
+  - period override (resets at next period)
+  - hold (stays until manually cleared)
+  - optional: predict temperature response to achieve next period's constraint
+
+Level 2: Smart modes
+  - Holiday (override indefinitely)
+  - Weekend away (override until Sunday 6pm)
+  - Guests staying (?)
+  - WFH (override until 6pm)
+
+  - improvement is "override until X" function
+
+
+
+
+Scrapped Ideas:
+
+Low-level (Allowable range)
+===========================
+
+Two inputs:
+  1) Desired Low Temperature (e.g. 65F)
+  2) Desired High Temperature (e.g. 80F)
+
+General logic:
+- if current temperature < Desired Low, turn on heating
+- if current temperature > Desired High, turun on AC

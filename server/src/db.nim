@@ -1,10 +1,7 @@
 import db_sqlite, times, sequtils, strutils
+import tdata
 
 let db = open("thermopi.db", nil, nil, nil)
-
-type Sensor* = object
-  id*: int
-  name*: string
 
 proc getSensors*(): seq[Sensor] =
   let results = db.getAllRows(sql"SELECT * FROM sensors")
@@ -12,14 +9,8 @@ proc getSensors*(): seq[Sensor] =
     id: it[0].parseInt,
     name: it[1]))
 
-type SensorData* = object
-  rowid*: int64
-  instant*: int64
-  sensor*: int
-  temperature*: float
-
 proc insertSensorData*(instant: int64, sensor: int, temperature: float): int64 =
-  db.tryInsertId(
+  discard db.tryInsertId(
     sql"INSERT INTO sensor_data (instant, sensor_id, temperature) VALUES (?,?,?)",
     instant, sensor, temperature)
   db.exec(sql"COMMIT")
