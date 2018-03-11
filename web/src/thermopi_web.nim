@@ -17,7 +17,7 @@ type
 
 const
   httpApi = cstring"http://thermopi:8080/api"
-#  httpApi = cstring"http://localhost:8080/api"
+  #httpApi = cstring"http://localhost:8080/api"
 
 let
   LF = cstring"" & "\n"
@@ -54,7 +54,7 @@ proc getSensorByName(name: cstring): Sensor =
   for s in sensors:
     if s.name == name: return s
 
-proc durationInSeconds(w: Window): int = 
+proc durationInSeconds(w: Window): int =
   case w
   of T1h:  60 * 60
   of T12h: 12 * 60 * 60
@@ -330,7 +330,7 @@ proc loadChartData() =
     var params = cstring"?"
     params &= "start=" & $start
     params &= "&end=" & $`end`
-    ajaxGet(httpApi & "/temperature/" & $currentSensor & params, @[], chartDataLoaded(currentSensor))  
+    ajaxGet(httpApi & "/temperature/" & $currentSensor & params, @[], chartDataLoaded(currentSensor))
 
 proc postRender(data: RouterData) =
   if not initialized:
