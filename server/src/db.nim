@@ -54,3 +54,8 @@ proc `$`*(s: SensorData): string =
     ", sensor=" & $s.sensor &
     ", temperature=" & $s.temperature & ")"
 
+proc checkpoint*() =
+  db.exec(sql"PRAGMA wal_checkpoint")
+
+
+
