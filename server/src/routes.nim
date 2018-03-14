@@ -1,6 +1,6 @@
 import rosencrantz, httpcore
 import parseutils, strutils, strtabs, times
-import db, tdata
+import db, tdata, tcontrol
 
 proc serializeSensorDataHuman(data: seq[SensorData]): string =
   result = ""
@@ -39,42 +39,41 @@ let gets = get[
         str &= $s.name & "\n"
       return ok($str)
   ] ~ pathChunk("/api/temperature")[
-      queryString(proc(s: StringTableRef): auto =
-        var
-          startParam = s.getOrDefault("start", "")
-          endParam = s.getOrDefault("end", "")
-          samplesParam = s.getOrDefault("samples", "")
-        intSegment(proc(sensorId: int): auto =
-          try:
-            let start = if startParam == "": epochTime().int64 else: startParam.parseInt
-            let `end` = if endParam == "": start - (60 * 60 * 24) else: endParam.parseInt # seconds, 24 hours by default
-            let samples = if samplesParam == "": 1000 else: samplesParam.parseInt
-
-            let raw = getSensorData(sensorId, start, `end`)
-            let normalized =
-              if raw.len < samples: raw
-              else: (
-                let step = ((`end` - start) div samples).int;
-                normalize(raw, start, `end`, step)
-              )
-            let body = serializeSensorData(normalized)
-            return ok(body)
-          except:
-            let e = getCurrentException()
-            let msg = getCurrentExceptionMsg()
-            return error(msg)
-
-        )
-      )
-  ] ~ pathChunk("/api/current")[
+    queryString(proc(s: StringTableRef): auto =
+      var
+        startParam = s.getOrDefault("start", "")
+        endParam = s.getOrDefault("end", "")
+        samplesParam = s.getOrDefault("samples", "")
       intSegment(proc(sensorId: int): auto =
-        let body = serializeSensorData(getLatestSensorData(sensorId))
-        return ok(body)
+        try:
+          let start = if startParam == "": epochTime().int64 else: startParam.parseInt
+          let `end` = if endParam == "": start - (60 * 60 * 24) else: endParam.parseInt # seconds, 24 hours by default
+          let samples = if samplesParam == "": 1000 else: samplesParam.parseInt
+
+          let raw = getSensorData(sensorId, start, `end`)
+          let normalized =
+            if raw.len < samples: raw
+            else: (
+              let step = ((`end` - start) div samples).int;
+              normalize(raw, start, `end`, step)
+            )
+          let body = serializeSensorData(normalized)
+          return ok(body)
+        except:
+          let e = getCurrentException()
+          let msg = getCurrentExceptionMsg()
+          return error(msg)
       )
+    )
+  ] ~ pathChunk("/api/current")[
+    intSegment(proc(sensorId: int): auto =
+      let body = serializeSensorData(getLatestSensorData(sensorId))
+      return ok(body)
+    )
   ]
 ]
 
-let posts = post [
+let posts = post[
   path("/api/temperature")[
     body(proc(str: string): auto =
       echo "POST api/temperature"
