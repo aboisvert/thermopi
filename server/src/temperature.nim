@@ -37,3 +37,6 @@ proc format*(t: Temperature, unit: TemperatureUnit): string =
     $t.toCelcius & "C"
   of Fahrenheit:
     $t.toFahrenheit & "F"
+
+proc `<`*(t1: Temperature, t2: Temperature): bool =
+  t1.toCelcius < t2.toCelcius
