@@ -24,3 +24,5 @@ CREATE TABLE IF NOT EXISTS control_data (
   heating tinyint DEFAULT NULL,
   cooling tinyint DEFAULT NULL
 );
+
+PRAGMA journal_mode=WAL;
