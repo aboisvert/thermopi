@@ -72,6 +72,10 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
     echo "updateState() - Heating"
     if currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis):
       echo "currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis)"
+      echo $currentTemperature.toCelcius
+      echo $desiredTemperature.toCelcius
+      echo $hysteresis
+      echo $(desiredTemperature.toCelcius - hysteresis)
       if currentState.hvac == Off:
         echo "currentState.hvac == Off"
         if currentTime > (currentState.lastTransition + quietTime):
