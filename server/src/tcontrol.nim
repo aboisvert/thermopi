@@ -65,16 +65,23 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
 
   case currentMode
   of NoControl:
+    echo "updateState() - NoControl"
     result.hvac = Off
 
   of Heating:
+    echo "updateState() - Heating"
     if currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis):
+      echo "currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis)"
       if currentState.hvac == Off:
+        echo "currentState.hvac == Off"
         if currentTime > (currentState.lastTransition + quietTime):
+          echo "currentTime > (currentState.lastTransition + quietTime)"
           result.lastTransition = currentTime
           result.hvac = On
     elif currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis):
+      echo "currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis"
       if currentState.hvac == On:  # no quietTime to turn off
+        echo "currentState.hvac == On"
         result.lastTransition = currentTime
         result.hvac = Off
 
@@ -88,6 +95,8 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
       if currentState.hvac == On:  # no quietTime to turn off
         result.lastTransition = currentTime
         result.hvac = Off
+
+  echo "updateState() - " & $result
 
 proc initTControl*() =
   when defined(controlPi):
