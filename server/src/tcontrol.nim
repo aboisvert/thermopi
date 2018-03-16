@@ -2,6 +2,7 @@ import options, times
 import temperature, datetime
 
 when defined(controlPi):
+  {.passL: "-lwiringPi".}
   import wiringPi
 
 type
@@ -31,7 +32,7 @@ proc calcDesiredTemperature(schedule: Schedule, dt: DateTime): Temperature
 
 
 let
-  hystheresis = 0.5 # celcius
+  hysteresis = 0.5 # celcius
 
   quietTime = 5 * 60 # seconds between on/off transition (duty-cycle control)
 
@@ -67,23 +68,23 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
     result.hvac = Off
 
   of Heating:
-    if currentTemperature.toCelcius < (desiredTemperature.toCelcius - hystheresis):
+    if currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis):
       if currentState.hvac == Off:
         if currentTime > (currentState.lastTransition + quietTime):
           result.lastTransition = currentTime
           result.hvac = On
-    elif currentTemperature.toCelcius > (desiredTemperature.toCelcius + hystheresis):
+    elif currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis):
       if currentState.hvac == On:  # no quietTime to turn off
         result.lastTransition = currentTime
         result.hvac = Off
 
   of Cooling:
-    if currentTemperature.toCelcius > (desiredTemperature.toCelcius + hystheresis):
+    if currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis):
       if currentState.hvac == Off:
         if currentTime > (currentState.lastTransition + quietTime):
           result.lastTransition = currentTime
           result.hvac = On
-    elif currentTemperature.toCelcius < (desiredTemperature.toCelcius - hystheresis):
+    elif currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis):
       if currentState.hvac == On:  # no quietTime to turn off
         result.lastTransition = currentTime
         result.hvac = Off
@@ -96,6 +97,8 @@ proc initTControl*() =
     coolingPin.pinMode(OUTPUT)
 
 proc controlHvac(c: HvacStatus) =
+  echo "Control HVAC: " & $controlMode & " -> " & $c
+
   case controlMode
   of NoControl:
     echo "No control - HvacStatus: " & $c
@@ -113,12 +116,16 @@ proc controlHvac(c: HvacStatus) =
 proc doControl*(currentTemperature: Temperature) =
   let currentTime = epochTime().int64
   let desiredTemperature = calcDesiredTemperature(mySchedule, getLocalTime(getTime()))
+  echo "current temperature: " & currentTemperature.format(Fahrenheit)
+  echo "desired temperature: " & desiredTemperature.format(Fahrenheit) & " +/- " & $(hysteresis * 1.8)
+
+  let oldState = controlState
 
   controlState = updateState(
     controlState, controlMode, currentTime,
     currentTemperature, desiredTemperature)
 
-  if controlMode != NoControl:
+  if controlMode != NoControl and oldState != controlState:
     controlHvac(controlState.hvac)
 
 
