@@ -15,6 +15,10 @@ type
   Window = enum
     T1h, T12h, T24h, T48h, T7days, T30days
 
+  HvacMode = enum NoControl, Heating, Cooling
+
+  HvacStatus = enum Off, On
+
 const
   httpApi = cstring"http://thermopi:8080/api"
   #httpApi = cstring"http://localhost:8080/api"
@@ -31,6 +35,15 @@ var
 
   currentTime: int          # seconds since epoch
   currentTemperature: float # in Celcius
+
+  mainSensorTemperature: float  # in Celcius
+  desiredTemperature:    float  # in Celcius
+
+  currentHvacMode = NoControl
+  currentHvacStatus = Off
+
+  upcomingTime: int          # seconds since epoc
+  upcomingTemperature: float # in Celcius
 
   currentUnit = Fahrenheit
 
@@ -147,8 +160,17 @@ proc createDom(data: RouterData): VNode =
 
           tdiv(class = "column"):
             tdiv(class = "card"):
-              tdiv(class = "card-content"):
-                text ""
+              tdiv(class = "card-content has-text-centered"):
+                section(class = "current-hvac-mode"):
+                  text $currentHvacMode & ": " & $currentHvacStatus
+                section(class = "desired-temperature"):
+                  tdiv(id="mainSensorTemperature"):
+                    text format(mainSensorTemperature, currentUnit) & " currently"
+                  tdiv(id="desiredTemperature"):
+                    text format(desiredTemperature, currentUnit) & " desired"
+                  tdiv(id="upcomingTemperature"):
+                    text "Next: " & format(upcomingTemperature, currentUnit) & " @"
+                    text fromUnix(upcomingTime).format(cstring"dddd, h:mm a")
 
         tdiv(class = "columns is-centered"):
           tdiv(class = "column has-text-centered"):
@@ -256,10 +278,17 @@ proc currentTemperatureLoaded(httpStatus: int, response: cstring, sensor: int) =
   ## ajaxGet() callback
   echo response
   let lines: seq[cstring] = response.split(LF)
-  let epoch: int = lines[0].parseInt
-  let temperature: float = lines[1].parseFloat
-  currentTime = epoch
-  currentTemperature = temperature
+  currentTime = lines[0].parseInt
+  currentTemperature = lines[1].parseFloat
+  currentHvacMode =
+    if   lines[2] == cstring"Heating": Heating
+    elif lines[2] == cstring"Cooling": Cooling
+    else: NoControl
+  currentHvacStatus = if lines[3] == cstring"On": On else: Off
+  mainSensorTemperature = lines[4].parseFloat
+  desiredTemperature = lines[5].parseFloat
+  upcomingTime = lines[6].parseInt
+  upcomingTemperature = lines[7].parseFloat
   redraw(kxi)
 
 proc currentTemperatureLoaded(sensor: int): proc (httpStatus: int, response: cstring) =
@@ -274,8 +303,14 @@ proc fakeCurrentTemperatureLoad() =
   ## generates dummy data when testing witout a live server
   var response = cstring""
   let now = epochTime().int64
-  response &= $now & LF
-  response &= $randomCelcius() & LF
+  response &= $now & LF # currentTime
+  response &= $randomCelcius() & LF # currentTemperature
+  response &= "Heating" & LF # currentHvacMode
+  response &= "On" & LF # currentHvacStatus
+  response &= $randomCelcius() & LF # mainSensorTemperature
+  response &= $randomCelcius() & LF # desiredTemperature
+  response &= $now & LF # upcomingTime
+  response &= $randomCelcius() & LF # upcomingTemperature
   currentTemperatureLoaded(httpStatus = 200, response, sensor = currentSensor)
 
 proc loadCurrentTemperature() =
