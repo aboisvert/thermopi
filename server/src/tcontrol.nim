@@ -156,7 +156,7 @@ proc periodAt(schedule: Schedule, dt: DateTime): Period =
     return period.get()
   else:
     let yesterday = yesterdayAtMidnight(dt)
-    let periods = if dt.isWeekday(): schedule.weekday else: schedule.weekend
+    let periods = if yesterday.isWeekday(): schedule.weekday else: schedule.weekend
     return periods[^1]
 
 proc calcDesiredTemperature(schedule: Schedule, dt: DateTime): Temperature =
