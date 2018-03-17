@@ -1,6 +1,6 @@
 import options, os, times
 import temperature, datetime
-import db, tdata
+import db, tdata, options
 
 when defined(controlPi):
   {.passL: "-lwiringPi".}
@@ -27,6 +27,9 @@ type
     weekday: seq[Period]
     weekend: seq[Period]
 
+  Override* = object
+    temperature*: Temperature
+    until*: int64 # seconds since epoch
 
 # Forward declarations
 proc defaultControlMode(): ControlMode
@@ -50,12 +53,15 @@ let
     ]
   )
 
+when defined(controlPi):
   heatingPin: cint = 0
   coolingPin: cint = 1
 
 var
   controlState* = ControlState(hvac: Off, lastTransition: 0)
   controlMode* = defaultControlMode()
+  override*: Option[Override] = none(Override)
+  forceHvac*: Option[HvacStatus] = none(HvacStatus)
 
 # General logic:
 # - if heating mode and current temperature < desired, turn on heating
@@ -94,6 +100,9 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
         result.lastTransition = currentTime
         result.hvac = Off
 
+  if forceHvac.isSome():
+    result.hvac = forceHvac.get()
+
 proc initTControl*() =
   when defined(controlPi):
     if (wiringPiSetup() == -1):
@@ -119,10 +128,21 @@ proc controlHvac(c: HvacStatus) =
       if c == Off: digitalWrite(coolingPin, 0)
 
 proc currentDesiredTemperature*(): Temperature =
-  calcDesiredTemperature(mySchedule, getTime().local())
+  if override.isSome():
+    let override = override.get()
+    override.temperature
+  else:
+    calcDesiredTemperature(mySchedule, getTime().local())
+
 
 proc doControl*(currentTemperature: Temperature) =
   let currentTime = epochTime().int64
+
+  # check if override has expired
+  if override.isSome():
+    if override.get().until <= currentTime:
+      override = none(Override)
+
   let desiredTemperature = currentDesiredTemperature()
   echo "current temperature: " & currentTemperature.format(Fahrenheit)
   echo "desired temperature: " & desiredTemperature.format(Fahrenheit) & " +/- " & $(hysteresis * 1.8)

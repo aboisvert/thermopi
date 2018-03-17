@@ -10,18 +10,27 @@ if test -n "$STUBS"
   set DEFINES $DEFINES -d:stubs
 end
 
+set first "true"
+
 while true
   echo "Waiting for changes ..."
-  fswatch --one-event --recursive src
+  if test "$first" = "false"
+    fswatch --one-event --recursive src
+  end
+  set first "false"
   #inotifywait --recursive --event modify ./ ; 
   echo "Compiling"
   echo nim js $DEFINES src/thermopi_web.nim
   nim js $DEFINES src/thermopi_web.nim > nim-js-output.txt ^&1
 
+  set debug src/thermopi-debug.html
   if test $status = 0
-  	cp src/thermopi.html src/thermopi-debug.html
+  	cp src/thermopi.html $debug
   else
-  	cp nim-js-output.txt src/thermopi-debug.html
+    echo "<html><body><pre>"     > $debug
+  	cat nim-js-output.txt       >> $debug
+    echo "</pre></body></html>" >> $debug
+    cat $debug
   end
 
   echo "Reloading"

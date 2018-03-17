@@ -2,7 +2,7 @@ import karax / [vdom, vstyles, kdom, karax, karaxdsl, kajax, jstrutils, compact,
 import jsffi except `&`
 import random, sequtils, strutils, times
 import chartjs, momentjs, url_js
-import temperature_units
+import temperature_units, times
 
 type
   Views = enum
@@ -45,6 +45,11 @@ var
   upcomingTime: int          # seconds since epoc
   upcomingTemperature: float # in Celcius
 
+  overrideTemperature: float # in Celcius
+  overrideUntil: int64       # seconds since epoc
+
+  forceHvac: cstring = ""
+
   currentUnit = Fahrenheit
 
   stubSensors = defined(stubs) # set to true when testing without a live server
@@ -75,6 +80,74 @@ proc durationInSeconds(w: Window): int =
   of T48h: 48 * 60 * 60
   of T7days: 7 * 24 * 60 * 60
   of T30days: 30 * 24 * 60 * 60
+
+##
+## Force HVAC
+##
+
+proc afterForceHvac(httpStatus: int, response: cstring) =
+  # refresh
+  loadCurrentTemperature()
+
+proc setForceHvac(newState: cstring) =
+  if stubSensors:
+    forceHvac = newState
+    afterForceHvac(200, "")
+  else:
+    ajaxPost(httpApi & "/forceHvac", @[], newState, afterForceHvac)
+
+proc clearForceHvac() = setForceHvac("")
+proc forceHvacOn()    = setForceHvac("On")
+proc forceHvacOff()   = setForceHvac("Off")
+
+##
+## Override stuff
+##
+
+proc afterOverrideChange(httpStatus: int, response: cstring) =
+  # refresh
+  loadCurrentTemperature()
+
+proc setOverride(newTemperature: float, newTimeUntil: int64) =
+  if stubSensors:
+    overrideTemperature = newTemperature
+    overrideUntil = newTimeUntil
+    afterOverrideChange(200, "")
+  else:
+    var body = ""
+    body &= $newTemperature & "\n"
+    body &= $newTimeUntil & "\n"
+    ajaxPost(httpApi & "/override", @[], body, afterOverrideChange)
+
+proc clearOverride() = setOverride(0.0, 0)
+
+
+proc comfortOneHour() =
+  let now = epochTime().int
+  setOverride(fahrenheitToCelcius(67), now + (60 * 60))
+
+proc workFromHome() =
+  var t = getTime().local()
+  setOverride(fahrenheitToCelcius(67), t.at(21, 30, 0).toTime.toUnix)
+
+proc comfortForGuests() =
+  var t = getTime().local()
+  setOverride(fahrenheitToCelcius(68), t.at(23, 0, 0).toTime.toUnix)
+
+proc awayForWeekend() =
+  var t = getTime().local()
+  while t.weekday != dSun:
+    t = (t.toTime() + 1.days).local()
+  setOverride(fahrenheitToCelcius(52), t.at(18, 0, 0).toTime.toUnix)
+
+proc awayFor30Days() =
+  var t = getTime().local()
+  t = (t.toTime() + 1.months).local()
+  setOverride(fahrenheitToCelcius(52), t.at(23, 59, 0).toTime.toUnix)
+
+##
+##
+##
 
 proc createDom(data: RouterData): VNode =
   ## main renderer
@@ -168,10 +241,61 @@ proc createDom(data: RouterData): VNode =
                     text "Current: " & format(mainSensorTemperature, currentUnit)
                   tdiv(id="desiredTemperature"):
                     text "Desired: " & format(desiredTemperature, currentUnit)
-                  tdiv(id="upcomingTemperature"):
-                    text "Next: " & format(upcomingTemperature, currentUnit) & " @"
-                  tdiv(id="upcomingTime"):
-                    text fromUnix(upcomingTime).format(cstring"dddd, h:mm a")
+                  if forceHvac != cstring"":
+                    tdiv(id="forceHvac"):
+                      strong:
+                        text "Force HVAC: " & forceHvac
+                        button:
+                          text "Clear"
+                          proc onclick(ev: Event; n: VNode) = clearForceHvac()
+                  elif overrideUntil == 0:
+                    tdiv(id="upcomingTemperature"):
+                      text "Next: " & format(upcomingTemperature, currentUnit) & " @"
+                    tdiv(id="upcomingTime"):
+                      text fromUnix(upcomingTime).format(cstring"dddd, h:mm a")
+                  else:
+                    tdiv(id="overrideTemperature"):
+                      strong:
+                        text "Override: " & format(overrideTemperature, currentUnit) & " until"
+                    tdiv(id="overrideUntil"):
+                      let now = epochTime().int64
+                      if overrideUntil - now > 7 * 24 * 60 * 60:
+                        strong:
+                          text fromUnix(overrideUntil.int).format(cstring"MMM d")
+
+                      else:
+                        strong:
+                          text fromUnix(overrideUntil.int).format(cstring"dddd, h:mm a")
+                    tdiv:
+                      button:
+                        text "Clear"
+                        proc onclick(ev: Event; n: VNode) = clearOverride()
+
+      # actions
+      section():
+        tdiv(class = "columns is-centered"):
+
+          tdiv(class = "column has-text-centered"):
+            button(class = "button"):
+              text "Comfort for 1 Hour"
+              proc onclick(ev: Event; n: VNode) = comfortOneHour()
+          tdiv(class = "column has-text-centered"):
+            button(class = "button"):
+              text "Work From Home"
+              proc onclick(ev: Event; n: VNode) = workFromHome()
+          tdiv(class = "column has-text-centered"):
+            button(class = "button"):
+              text "Guests Overnight"
+              proc onclick(ev: Event; n: VNode) = comfortForGuests()
+          tdiv(class = "column has-text-centered"):
+            button(class = "button"):
+              text "Away for Weekend"
+              proc onclick(ev: Event; n: VNode) = awayForWeekend()
+          tdiv(class = "column has-text-centered"):
+            button(class = "button"):
+              text "Away"
+              proc onclick(ev: Event; n: VNode) = awayFor30Days()
+
 
         tdiv(class = "columns is-centered"):
           tdiv(class = "column has-text-centered"):
@@ -200,6 +324,18 @@ proc createDom(data: RouterData): VNode =
             section(class = "graph", id = "graph"):
               tdiv(class="chart-container", id="chart-div", style = style(StyleAttr.position, cstring"relative")): #position: relative; height:40vh; width:80vw"):
                 canvas(id = "chart")
+        tdiv(class = "columns is-centered"):
+          tdiv(class = "column has-text-centered"):
+            text "Force HVAC"
+            button:
+              text "On"
+              proc onclick(ev: Event; n: VNode) = forceHvacOn()
+            button:
+              text "Off"
+              proc onclick(ev: Event; n: VNode) = forceHvacOff()
+            button:
+              text "Clear"
+              proc onclick(ev: Event; n: VNode) = clearForceHvac()
 
 proc sensorsLoaded(httpStatus: int, response: cstring) =
   ## ajaxGet callback
@@ -290,6 +426,9 @@ proc currentTemperatureLoaded(httpStatus: int, response: cstring, sensor: int) =
   desiredTemperature = lines[5].parseFloat
   upcomingTime = lines[6].parseInt
   upcomingTemperature = lines[7].parseFloat
+  overrideTemperature = lines[8].parseFloat
+  overrideUntil = lines[9].parseInt
+  forceHvac = lines[10]
   redraw(kxi)
 
 proc currentTemperatureLoaded(sensor: int): proc (httpStatus: int, response: cstring) =
