@@ -1,6 +1,6 @@
 import rosencrantz, httpcore
 import parseutils, strutils, strtabs, times
-import db, tdata, tcontrol
+import db, tdata, tcontrol, temperature
 
 proc serializeSensorDataHuman(data: seq[SensorData]): string =
   result = ""
@@ -67,7 +67,18 @@ let gets = get[
     )
   ] ~ pathChunk("/api/current")[
     intSegment(proc(sensorId: int): auto =
-      let body = serializeSensorData(getLatestSensorData(sensorId))
+      var body = ""
+      body &= serializeSensorData(getLatestSensorData(sensorId))
+
+      body &= $controlMode & "\n" # currentHvacMode
+      body &= $controlState.hvac & "\n" # currentHvacStatus
+
+      body &= $getLatestSensorData(mainSensorId)[0].temperature & "\n" # mainSensorTemperature
+      body &= $currentDesiredTemperature().toCelcius() & "\n" # desiredTemperature
+
+      let (upcomingPeriod, upcomingTime) = upcomingPeriod()
+      body &= $upcomingTime.toTime().toSeconds() & "\n" # upcomingTime
+      body &= $upcomingPeriod.desiredTemperature & "\n"# upcomingTemperature
       return ok(body)
     )
   ]

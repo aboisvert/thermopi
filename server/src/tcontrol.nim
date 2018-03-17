@@ -1,5 +1,6 @@
-import options, times
+import options, os, times
 import temperature, datetime
+import db, tdata
 
 when defined(controlPi):
   {.passL: "-lwiringPi".}
@@ -8,15 +9,15 @@ when defined(controlPi):
 type
   ControlMode* = enum NoControl, Heating, Cooling
 
-  HvacStatus = enum Off, On
+  HvacStatus* = enum Off, On
 
-  ControlState = object
-    hvac: HvacStatus
-    lastTransition: int64 # seconds since epoch
+  ControlState* = object
+    hvac*: HvacStatus
+    lastTransition*: int64 # seconds since epoch
 
   DayTime* = object
-    hour: int
-    min: int
+    hour*: int
+    min*: int
 
   Period* = object
     start*: DayTime
@@ -26,10 +27,10 @@ type
     weekday: seq[Period]
     weekend: seq[Period]
 
+
 # Forward declarations
 proc defaultControlMode(): ControlMode
 proc calcDesiredTemperature(schedule: Schedule, dt: DateTime): Temperature
-
 
 let
   hysteresis = 0.5 # celcius
@@ -53,8 +54,8 @@ let
   coolingPin: cint = 1
 
 var
-  controlState = ControlState(hvac: Off, lastTransition: 0)
-  controlMode = defaultControlMode()
+  controlState* = ControlState(hvac: Off, lastTransition: 0)
+  controlMode* = defaultControlMode()
 
 # General logic:
 # - if heating mode and current temperature < desired, turn on heating
@@ -65,27 +66,20 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
 
   case currentMode
   of NoControl:
-    echo "updateState() - NoControl"
     result.hvac = Off
 
   of Heating:
-    echo "updateState() - Heating"
     if currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis):
-      echo "currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis)"
       echo $currentTemperature.toCelcius
       echo $desiredTemperature.toCelcius
       echo $hysteresis
       echo $(desiredTemperature.toCelcius - hysteresis)
       if currentState.hvac == Off:
-        echo "currentState.hvac == Off"
         if currentTime > (currentState.lastTransition + quietTime):
-          echo "currentTime > (currentState.lastTransition + quietTime)"
           result.lastTransition = currentTime
           result.hvac = On
     elif currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis):
-      echo "currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis"
       if currentState.hvac == On:  # no quietTime to turn off
-        echo "currentState.hvac == On"
         result.lastTransition = currentTime
         result.hvac = Off
 
@@ -99,8 +93,6 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
       if currentState.hvac == On:  # no quietTime to turn off
         result.lastTransition = currentTime
         result.hvac = Off
-
-  echo "updateState() - " & $result
 
 proc initTControl*() =
   when defined(controlPi):
@@ -126,9 +118,12 @@ proc controlHvac(c: HvacStatus) =
       if c == On:  digitalWrite(coolingPin, 1)
       if c == Off: digitalWrite(coolingPin, 0)
 
+proc currentDesiredTemperature*(): Temperature =
+  calcDesiredTemperature(mySchedule, getTime().local())
+
 proc doControl*(currentTemperature: Temperature) =
   let currentTime = epochTime().int64
-  let desiredTemperature = calcDesiredTemperature(mySchedule, getLocalTime(getTime()))
+  let desiredTemperature = currentDesiredTemperature()
   echo "current temperature: " & currentTemperature.format(Fahrenheit)
   echo "desired temperature: " & desiredTemperature.format(Fahrenheit) & " +/- " & $(hysteresis * 1.8)
 
@@ -153,19 +148,50 @@ proc findPeriod(periods: seq[Period], dt: DateTime): Option[Period] =
     i -= 1
   return none(Period)
 
+
+proc periodAt(schedule: Schedule, dt: DateTime): Period =
+  let periods = if dt.isWeekday(): schedule.weekday else: schedule.weekend
+  findPeriod(periods, dt).get(otherwise = periodAt(schedule, yesterdayAtMidnight(dt)))
+
 proc calcDesiredTemperature(schedule: Schedule, dt: DateTime): Temperature =
-  let period = findPeriod(if dt.isWeekday(): schedule.weekday else: schedule.weekend, dt)
-  if period.isSome(): period.get().desiredTemperature
-  else: calcDesiredTemperature(schedule, yesterdayAtMidnight(dt))
+  periodAt(schedule, dt).desiredTemperature
+
+proc upcomingPeriod(periods: seq[Period], dt: DateTime): Option[Period] =
+  result = none(Period)
+  var i = periods.len - 1
+  while i > 0:
+    let p = periods[i]
+    let h = p.start.hour
+    let m = p.start.min
+    if (h > dt.hour) or (h == dt.hour and m >= dt.minute):
+      return result
+    result = some(p)
+    i -= 1
+  return result
+
+proc upcomingPeriod(schedule: Schedule, dt: DateTime): (Period, DateTime) =
+  let periods = if dt.isWeekday(): schedule.weekday else: schedule.weekend
+  let period = upcomingPeriod(periods, dt)
+  if period.isSome():
+    let period = period.get()
+    (period, dt.at(period.start.hour, period.start.min, 0))
+  else:
+    let tomorrow = tomorrowAtMidnight(dt)
+    let periods = if tomorrow.isWeekday(): schedule.weekday else: schedule.weekend
+    let period = periods[0]
+    (period, tomorrow.at(period.start.hour, period.start.min, 0))
+
+proc upcomingPeriod*(): (Period, DateTime) =
+  upcomingPeriod(mySchedule, getTime().local())
 
 proc isSummer(): bool =
-  let t = getLocalTime(getTime())
+  let t = getTime().local()
   case t.month
   of mMay, mJun, mJul, mAug, mSep: true
   else: false
 
 proc isWinter(): bool =
-  let t = getLocalTime(getTime())
+  let t = getTime().local()
   case t.month
   of mNov, mDec, mJan, mFeb, mMar: true
   else: false
@@ -174,3 +200,30 @@ proc defaultControlMode(): ControlMode =
   if isSummer(): Cooling
   elif isWinter(): Heating
   else: NoControl
+
+
+## Control loop
+
+let mainSensorId* = 1 # e.g. living room
+let checkpointPeriod = 10 * 60 # period, in seconds, to checkpoint database
+
+proc controlLoop*(): void =
+  {.gcsafe.}:
+    var lastCheckpoint = 0.int64
+
+    while true:
+      sleep(5 * 1000)
+      let now = epochTime().int64
+
+      # turn HVAC system on/off based on current temperature of main sensor
+      let sensorData = getLatestSensorData(mainSensorId)
+      if sensorData.len > 0:
+        let last = sensorData[0]
+        if last.instant > (now - 5 * 60):
+          let currentTemperature = celcius(last.temperature)
+          doControl(currentTemperature)
+
+      # checkpoit database
+      if lastCheckpoint < now - checkpointPeriod:
+        db.checkpoint()
+        lastCheckpoint = now
