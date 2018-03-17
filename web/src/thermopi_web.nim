@@ -20,8 +20,8 @@ type
   HvacStatus = enum Off, On
 
 const
-  httpApi = if defined(local): cstring"http://thermopi:8080/api"
-            else: cstring"http://localhost:8080/api"
+  httpApi = if defined(local): cstring"http://localhost:8080/api"
+            else: cstring"http://thermopi:8080/api"
 
 let
   LF = cstring"" & "\n"
