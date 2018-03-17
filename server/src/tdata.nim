@@ -28,7 +28,7 @@ proc normalize*(data: seq[SensorData], from1: int64, to1: int64, step: int): seq
       rowid: if n == 0: 0.int64 else: (rowid div n),
       instant: (t + step) div 2,
       sensor: sensor,
-      temperature: if n == 0: NaN else: math.round(sum/n.float, 1)
+      temperature: if n == 0: NaN else: math.round(sum/n.float, 2)
     )
     result.add(point)
     t += step

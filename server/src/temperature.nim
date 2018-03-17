@@ -16,10 +16,10 @@ proc fahrenheit*(f: float): Temperature =
   Temperature(value: f, unit: Fahrenheit)
 
 proc celciusToFahrenheit*(c: float): float =
-  math.round((c * 1.8) + 32, 1)
+  math.round((c * 1.8) + 32, 2)
 
 proc fahrenheitToCelcius*(f: float): float =
-  math.round((f - 32) / 1.8, 1)
+  math.round((f - 32) / 1.8, 2)
 
 proc toCelcius*(t: Temperature): float =
   case t.unit
