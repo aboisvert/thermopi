@@ -60,7 +60,7 @@ let gets = get[
           let body = serializeSensorData(normalized)
           return ok(body)
         except:
-          let e = getCurrentException()
+          #let e = getCurrentException()
           let msg = getCurrentExceptionMsg()
           return error(msg)
       )
@@ -77,7 +77,7 @@ let gets = get[
       body &= $currentDesiredTemperature().toCelcius() & "\n" # desiredTemperature
 
       let (upcomingPeriod, upcomingTime) = upcomingPeriod()
-      body &= $upcomingTime.toTime().toSeconds() & "\n" # upcomingTime
+      body &= $upcomingTime.toTime().toUnix() & "\n" # upcomingTime
       body &= $upcomingPeriod.desiredTemperature & "\n"# upcomingTemperature
       return ok(body)
     )
