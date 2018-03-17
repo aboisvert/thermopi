@@ -78,7 +78,7 @@ let gets = get[
 
       let (upcomingPeriod, upcomingTime) = upcomingPeriod()
       body &= $upcomingTime.toTime().toUnix() & "\n" # upcomingTime
-      body &= $upcomingPeriod.desiredTemperature & "\n"# upcomingTemperature
+      body &= $upcomingPeriod.desiredTemperature.toCelcius & "\n"# upcomingTemperature
       return ok(body)
     )
   ]
