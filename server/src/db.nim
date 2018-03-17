@@ -50,7 +50,7 @@ proc getLatestSensorData*(sensor: int): seq[SensorData] =
 proc `$`*(s: SensorData): string =
   "SensorData(" &
     "rowid=" & $s.rowid &
-    ", instant=" & format(fromSeconds(s.instant).local(), "d MMMM yyyy HH:mm:ss") &
+    ", instant=" & format(fromUnix(s.instant).local(), "d MMMM yyyy HH:mm:ss") &
     ", sensor=" & $s.sensor &
     ", temperature=" & $s.temperature & ")"
 
