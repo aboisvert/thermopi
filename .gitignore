@@ -1,3 +1,2 @@
 nimcache/
-server/thermopi.db
-
+server/thermopi.db*
