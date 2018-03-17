@@ -121,7 +121,6 @@ proc setOverride(newTemperature: float, newTimeUntil: int64) =
 
 proc clearOverride() = setOverride(0.0, 0)
 
-
 proc comfortOneHour() =
   let now = epochTime().int
   setOverride(fahrenheitToCelcius(67), now + (60 * 60))
@@ -144,6 +143,19 @@ proc awayFor30Days() =
   var t = getTime().local()
   t = (t.toTime() + 1.months).local()
   setOverride(fahrenheitToCelcius(52), t.at(23, 59, 0).toTime.toUnix)
+
+proc overrideAdjustTemperature(difference: float) =
+  let baseTemperature =
+    if overrideUntil == 0: desiredTemperature else: overrideTemperature
+  let newTemperature = case currentUnit
+    of Celcius: baseTemperature + difference
+    of Fahrenheit: baseTemperature + (difference / 1.8)
+  let newUntil = max(overrideUntil, epochTime().int + (60 * 60))
+  setOverride(newTemperature, newUntil)
+
+proc overrideAddTime(difference: int) =
+  if overrideUntil != 0:
+    setOverride(overrideTemperature, overrideUntil + difference)
 
 ##
 ##
@@ -239,8 +251,15 @@ proc createDom(data: RouterData): VNode =
                 section(class = "desired-temperature"):
                   tdiv(id="mainSensorTemperature"):
                     text "Current: " & format(mainSensorTemperature, currentUnit)
-                  tdiv(id="desiredTemperature"):
-                    text "Desired: " & format(desiredTemperature, currentUnit)
+                  if overrideUntil == 0:
+                    tdiv(id="desiredTemperature"):
+                      text "Desired: " & format(desiredTemperature, currentUnit)
+                      button:
+                        text "+1"
+                        proc onclick(ev: Event; n: VNode) = overrideAdjustTemperature(1)
+                      button:
+                        text "-1"
+                        proc onclick(ev: Event; n: VNode) = overrideAdjustTemperature(-1)
                   if forceHvac != cstring"":
                     tdiv(id="forceHvac"):
                       strong:
@@ -256,17 +275,29 @@ proc createDom(data: RouterData): VNode =
                   else:
                     tdiv(id="overrideTemperature"):
                       strong:
-                        text "Override: " & format(overrideTemperature, currentUnit) & " until"
+                        text "Override: " & format(overrideTemperature, currentUnit)
+                      button:
+                        text "+1"
+                        proc onclick(ev: Event; n: VNode) = overrideAdjustTemperature(1)
+                      button:
+                        text "-1"
+                        proc onclick(ev: Event; n: VNode) = overrideAdjustTemperature(-1)
+                      text "until"
                     tdiv(id="overrideUntil"):
                       let now = epochTime().int64
                       if overrideUntil - now > 7 * 24 * 60 * 60:
                         strong:
-                          text fromUnix(overrideUntil.int).format(cstring"MMM d")
-
+                          text fromUnix(overrideUntil.int).format(cstring"MMM D")
                       else:
                         strong:
                           text fromUnix(overrideUntil.int).format(cstring"dddd, h:mm a")
                     tdiv:
+                      button:
+                        text "+1h"
+                        proc onclick(ev: Event; n: VNode) = overrideAddTime(60 * 60)
+                      button:
+                        text "+1d"
+                        proc onclick(ev: Event; n: VNode) = overrideAddTime(24 * 60 * 60)
                       button:
                         text "Clear"
                         proc onclick(ev: Event; n: VNode) = clearOverride()
