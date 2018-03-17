@@ -20,8 +20,8 @@ type
   HvacStatus = enum Off, On
 
 const
-  httpApi = cstring"http://thermopi:8080/api"
-  #httpApi = cstring"http://localhost:8080/api"
+  httpApi = if defined(local): cstring"http://thermopi:8080/api"
+            else: cstring"http://localhost:8080/api"
 
 let
   LF = cstring"" & "\n"
@@ -47,7 +47,7 @@ var
 
   currentUnit = Fahrenheit
 
-  stubSensors = false # set to true when testing without a live server
+  stubSensors = defined(stubs) # set to true when testing without a live server
   initialized = false # set to true after the first postRender()
 
   chart: Chart # temperature chart
@@ -165,11 +165,12 @@ proc createDom(data: RouterData): VNode =
                   text $currentHvacMode & ": " & $currentHvacStatus
                 section(class = "desired-temperature"):
                   tdiv(id="mainSensorTemperature"):
-                    text format(mainSensorTemperature, currentUnit) & " currently"
+                    text "Current: " & format(mainSensorTemperature, currentUnit)
                   tdiv(id="desiredTemperature"):
-                    text format(desiredTemperature, currentUnit) & " desired"
+                    text "Desired: " & format(desiredTemperature, currentUnit)
                   tdiv(id="upcomingTemperature"):
                     text "Next: " & format(upcomingTemperature, currentUnit) & " @"
+                  tdiv(id="upcomingTime"):
                     text fromUnix(upcomingTime).format(cstring"dddd, h:mm a")
 
         tdiv(class = "columns is-centered"):
