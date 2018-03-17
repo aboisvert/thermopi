@@ -139,7 +139,7 @@ proc doControl*(currentTemperature: Temperature) =
 
 proc findPeriod(periods: seq[Period], dt: DateTime): Option[Period] =
   var i = periods.len - 1
-  while i > 0:
+  while i >= 0:
     let p = periods[i]
     let h = p.start.hour
     let m = p.start.min
@@ -159,7 +159,7 @@ proc calcDesiredTemperature(schedule: Schedule, dt: DateTime): Temperature =
 proc upcomingPeriod(periods: seq[Period], dt: DateTime): Option[Period] =
   result = none(Period)
   var i = periods.len - 1
-  while i > 0:
+  while i >= 0:
     let p = periods[i]
     let h = p.start.hour
     let m = p.start.min
