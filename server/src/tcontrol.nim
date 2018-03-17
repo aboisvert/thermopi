@@ -151,7 +151,13 @@ proc findPeriod(periods: seq[Period], dt: DateTime): Option[Period] =
 
 proc periodAt(schedule: Schedule, dt: DateTime): Period =
   let periods = if dt.isWeekday(): schedule.weekday else: schedule.weekend
-  findPeriod(periods, dt).get(otherwise = periodAt(schedule, yesterdayAtMidnight(dt)))
+  let period = findPeriod(periods, dt)
+  if period.isSome():
+    return period.get()
+  else:
+    let yesterday = yesterdayAtMidnight(dt)
+    let periods = if dt.isWeekday(): schedule.weekday else: schedule.weekend
+    return periods[^1]
 
 proc calcDesiredTemperature(schedule: Schedule, dt: DateTime): Temperature =
   periodAt(schedule, dt).desiredTemperature
