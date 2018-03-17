@@ -143,7 +143,7 @@ proc findPeriod(periods: seq[Period], dt: DateTime): Option[Period] =
     let p = periods[i]
     let h = p.start.hour
     let m = p.start.min
-    if (h > dt.hour) or (h == dt.hour and m >= dt.minute):
+    if (h < dt.hour) or (h == dt.hour and m <= dt.minute):
       return some(p)
     i -= 1
   return none(Period)
@@ -163,7 +163,7 @@ proc upcomingPeriod(periods: seq[Period], dt: DateTime): Option[Period] =
     let p = periods[i]
     let h = p.start.hour
     let m = p.start.min
-    if (h > dt.hour) or (h == dt.hour and m >= dt.minute):
+    if (h < dt.hour) or (h == dt.hour and m <= dt.minute):
       return result
     result = some(p)
     i -= 1
