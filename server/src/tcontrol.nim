@@ -249,7 +249,7 @@ proc controlLoop*(): void =
         let sensorData = getLatestSensorData(mainSensorId)
         if sensorData.len > 0:
           let last = sensorData[0]
-          if last.instant > (now - 5 * 60):
+          if last.instant > (now - (5 * 60)):
             let currentTemperature = celcius(last.temperature)
             doControl(currentTemperature)
 
