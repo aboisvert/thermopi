@@ -54,8 +54,9 @@ let
   )
 
 when defined(controlPi):
-  heatingPin: cint = 0
-  coolingPin: cint = 1
+  let
+    heatingPin: cint = 0
+    coolingPin: cint = 1
 
 var
   controlState* = ControlState(hvac: Off, lastTransition: 0)
@@ -119,13 +120,15 @@ proc controlHvac(c: HvacStatus) =
   of Heating:
     echo "Heating - HvacStatus: " & $c
     when defined(controlPi):
-      if c == On:  digitalWrite(heatingPin, 1)
-      if c == Off: digitalWrite(heatingPin, 0)
+      if c == On:  digitalWrite(heatingPin, 0) # Relay is active low
+      if c == Off: digitalWrite(heatingPin, 1)
+      digitalWrite(coolingPin, 1) # Force cooling off (relay is active low)
   of Cooling:
     echo "Cooling - HvacStatus: " & $c
     when defined(controlPi):
-      if c == On:  digitalWrite(coolingPin, 1)
-      if c == Off: digitalWrite(coolingPin, 0)
+      if c == On:  digitalWrite(coolingPin, 0)
+      if c == Off: digitalWrite(coolingPin, 1)
+      digitalWrite(heatingPin, 1) # Force heating off (relay is active low)
 
 proc currentDesiredTemperature*(): Temperature =
   if override.isSome():
