@@ -7,8 +7,8 @@
 OneWire oneWire(ONE_WIRE_BUS); 
 DallasTemperature sensors(&oneWire);
 
-const char* ssid     = "***REMOVED***";
-const char* password = "***REMOVED***";
+const char* ssid     = "CHANGE-ME";
+const char* password = "CHANGE-ME";
 
 const char* host = "thermopi";
 const int httpPort = 8080;
