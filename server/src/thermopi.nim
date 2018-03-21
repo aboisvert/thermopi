@@ -17,4 +17,3 @@ while not clean:
     let e = getCurrentException()
     let msg = getCurrentExceptionMsg()
     echo "server.serve() exception ", repr(e), " with message ", msg
-    
