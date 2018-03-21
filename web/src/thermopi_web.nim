@@ -504,7 +504,7 @@ proc chartDataLoaded(httpStatus: int, response: cstring, sensor: int) =
   for i in 0 ..< lines.len div 2:
     let epoch: int = lines[i*2].parseInt
     let temp: float = lines[i*2+1].parseFloat
-    labels.add(fromUnix(epoch).format(cstring"dddd, h:mm a"))
+    labels.add(fromUnix(epoch).local().format(cstring"ddd, h:mm a"))
     temperatures.add(temp)
   updateChart(labels, temperatures)
 
@@ -541,8 +541,8 @@ proc loadChartData() =
 proc postRender(data: RouterData) =
   if not initialized:
     loadSensors()
-    loadChartData()
     periodicLoadCurrentTemperature()
+    loadChartData()
   initialized = true
 
 setRenderer createDom, "ROOT", postRender
