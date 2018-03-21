@@ -42,7 +42,7 @@ proc serializeCurrentState(sensorId: int): string =
 proc serializeSensorData(sensorId: int, start: int64, `end`: int64, samples: int): string =
   let raw = getSensorData(sensorId, start, `end`)
   let normalized =
-    if raw.len < samples: raw
+    if raw.len < samples and false: raw
     else: (
       let step = ((`end` - start) div samples).int;
       normalize(raw, start, `end`, step)
