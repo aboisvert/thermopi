@@ -247,7 +247,7 @@ proc controlLoop*(): void =
 
         # turn HVAC system on/off based on current temperature of main sensor
         let sensorData = getLatestSensorData(mainSensorId)
-        if sensorData.len > 0:
+        if sensorData.len > 0 or forceHvac.isSome:
           let last = sensorData[0]
           if last.instant > (now - (5 * 60)):
             let currentTemperature = celcius(last.temperature)
