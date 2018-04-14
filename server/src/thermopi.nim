@@ -8,12 +8,11 @@ initTControl()
 spawn controlLoop()
 
 let server = newAsyncHttpServer()
-var clean = false
-while not clean:
-  try:
-    waitFor server.serve(Port(8080), handler)
-    clean = true
-  except:
-    let e = getCurrentException()
-    let msg = getCurrentExceptionMsg()
-    echo "server.serve() exception ", repr(e), " with message ", msg
+
+try:
+  asyncCheck server.serve(Port(8080), handler)
+  runForever()
+except:
+  let e = getCurrentException()
+  let msg = getCurrentExceptionMsg()
+  echo "server.serve() exception ", repr(e), " with message ", msg
