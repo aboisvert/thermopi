@@ -5,13 +5,14 @@ import db, tdata, tcontrol, temperature, asyncstuff
 proc serializeSensorDataHuman(data: seq[SensorData]): string =
   result = ""
   for s in data:
-    result &= $s & "\r\n"
+    result.add $s
+    result.add "\r\n"
 
 proc serializeSensorData(data: seq[SensorData]): string =
   result = ""
   for s in data:
-    result &= $s.instant & "\n"
-    result &= $s.temperature & "\n"
+    result.add $s.instant; result.add "\n"
+    result.add $s.temperature; result.add "\n"
 
 proc serializeCurrentState(sensorId: int): Future[string] {.async.} =
   proc getLatestSensorDataAux(sensorId: int): seq[SensorData] =
@@ -21,29 +22,29 @@ proc serializeCurrentState(sensorId: int): Future[string] {.async.} =
   let latestMainSensorData    = await callAsync(int, mainSensorId, seq[SensorData], getLatestSensorDataAux)
 
   result = ""
-  result &= serializeSensorData(latestCurrentSensorData)
+  result.add serializeSensorData(latestCurrentSensorData)
 
-  result &= $controlMode & "\n" # currentHvacMode
-  result &= $controlState.hvac & "\n" # currentHvacStatus
+  result.add $controlMode & "\n" # currentHvacMode
+  result.add $controlState.hvac & "\n" # currentHvacStatus
 
-  result &= $latestMainSensorData[0].temperature & "\n" # mainSensorTemperature
-  result &= $currentDesiredTemperature().toCelcius() & "\n" # desiredTemperature
+  result.add $latestMainSensorData[0].temperature & "\n" # mainSensorTemperature
+  result.add $currentDesiredTemperature().toCelcius() & "\n" # desiredTemperature
 
   let (upcomingPeriod, upcomingTime) = upcomingPeriod()
-  result &= $upcomingTime.toTime().toUnix() & "\n" # upcomingTime
-  result &= $upcomingPeriod.desiredTemperature.toCelcius() & "\n" # upcomingTemperature
+  result.add $upcomingTime.toTime().toUnix() & "\n" # upcomingTime
+  result.add $upcomingPeriod.desiredTemperature.toCelcius() & "\n" # upcomingTemperature
 
   if override.isSome:
-    result &= $options.get(override).temperature.toCelcius() & "\n" # overrideTemperature
-    result &= $options.get(override).until & "\n" # overrideUntil
+    result.add $options.get(override).temperature.toCelcius() & "\n" # overrideTemperature
+    result.add $options.get(override).until & "\n" # overrideUntil
   else:
-    result &= "0\n" # overrideTemperature
-    result &= "0\n" # overrideUntil
+    result.add "0\n" # overrideTemperature
+    result.add "0\n" # overrideUntil
 
   if forceHvac.isSome:
-    result &= $options.get(forceHvac) & "\n"
+    result.add $options.get(forceHvac) & "\n"
   else:
-    result &= "\n"
+    result.add "\n"
 
 proc serializeSensorData(sensorId: int, start: int64, `end`: int64, samples: int): Future[string] {.async.} =
   let params = (sensorId, start, `end`)
@@ -86,8 +87,8 @@ let gets = get[
     scope do:
       var str = ""
       for s in getSensors():
-        str &= $(s.id) & "\n"
-        str &= $s.name & "\n"
+        str.add $(s.id) & "\n"
+        str.add $s.name & "\n"
       return ok($str)
   ] ~ pathChunk("/api/temperature")[
     queryString(proc(s: StringTableRef): auto =
