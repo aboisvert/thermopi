@@ -2,6 +2,13 @@ import rosencrantz, httpcore
 import parseutils, strutils, strtabs, times, options
 import db, tdata, tcontrol, temperature, asyncstuff
 
+template measure(str: string, body: untyped): untyped =
+  let start = cpuTime()
+  let result = body
+  let stop = cpuTime()
+  echo str & " - " & $(stop-start)
+  result
+
 proc serializeSensorDataHuman(data: seq[SensorData]): string =
   result = ""
   for s in data:
@@ -50,7 +57,8 @@ proc serializeSensorData(sensorId: int, start: int64, `end`: int64, samples: int
   let params = (sensorId, start, `end`)
   proc getSensorDataAux(params: params.type): seq[SensorData] =
     let (sensorId, start, `end`) = params
-    getSensorData(sensorId, start, `end`)
+    measure("getSensorData") do:
+      getSensorData(sensorId, start, `end`)
 
   let raw = await callAsync(params.type, params, seq[SensorData], getSensorDataAux)
 
@@ -58,9 +66,11 @@ proc serializeSensorData(sensorId: int, start: int64, `end`: int64, samples: int
     if raw.len < samples and false: raw
     else: (
       let step = ((`end` - start) div samples).int;
-      normalize(raw, start, `end`, step)
+      measure("normalize") do:
+        normalize(raw, start, `end`, step)
     )
-  result = serializeSensorData(normalized)
+  result = measure("serialize") do:
+    serializeSensorData(normalized)
 
 proc error(msg: string): Handler =
   complete(Http500, "Server Error: " & msg, {"Content-Type": "text/plain;charset=utf-8"}.newHttpHeaders)
