@@ -11,6 +11,8 @@ type SensorData* = object
   temperature*: float
 
 proc normalize*(data: seq[SensorData], from1: int64, to1: int64, step: int): seq[SensorData] =
+  if data.len == 0: return @[]
+
   result = newSeqOfCap[SensorData]((to1 - from1) div step + 1)
   let sensor = data[0].sensor
   var t = from1

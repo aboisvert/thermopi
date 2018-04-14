@@ -1,6 +1,6 @@
 import rosencrantz, httpcore
 import parseutils, strutils, strtabs, times, options
-import db, tdata, tcontrol, temperature
+import db, tdata, tcontrol, temperature, asyncstuff
 
 proc serializeSensorDataHuman(data: seq[SensorData]): string =
   result = ""
@@ -13,14 +13,20 @@ proc serializeSensorData(data: seq[SensorData]): string =
     result &= $s.instant & "\n"
     result &= $s.temperature & "\n"
 
-proc serializeCurrentState(sensorId: int): string =
+proc serializeCurrentState(sensorId: int): Future[string] {.async.} =
+  proc getLatestSensorDataAux(sensorId: int): seq[SensorData] =
+    getLatestSensorData(sensorId)
+
+  let latestCurrentSensorData = await callAsync(int, sensorId,     seq[SensorData], getLatestSensorDataAux)
+  let latestMainSensorData    = await callAsync(int, mainSensorId, seq[SensorData], getLatestSensorDataAux)
+
   result = ""
-  result &= serializeSensorData(getLatestSensorData(sensorId))
+  result &= serializeSensorData(latestCurrentSensorData)
 
   result &= $controlMode & "\n" # currentHvacMode
   result &= $controlState.hvac & "\n" # currentHvacStatus
 
-  result &= $getLatestSensorData(mainSensorId)[0].temperature & "\n" # mainSensorTemperature
+  result &= $latestMainSensorData[0].temperature & "\n" # mainSensorTemperature
   result &= $currentDesiredTemperature().toCelcius() & "\n" # desiredTemperature
 
   let (upcomingPeriod, upcomingTime) = upcomingPeriod()
@@ -39,15 +45,21 @@ proc serializeCurrentState(sensorId: int): string =
   else:
     result &= "\n"
 
-proc serializeSensorData(sensorId: int, start: int64, `end`: int64, samples: int): string =
-  let raw = getSensorData(sensorId, start, `end`)
+proc serializeSensorData(sensorId: int, start: int64, `end`: int64, samples: int): Future[string] {.async.} =
+  let params = (sensorId, start, `end`)
+  proc getSensorDataAux(params: params.type): seq[SensorData] =
+    let (sensorId, start, `end`) = params
+    getSensorData(sensorId, start, `end`)
+
+  let raw = await callAsync(params.type, params, seq[SensorData], getSensorDataAux)
+
   let normalized =
     if raw.len < samples and false: raw
     else: (
       let step = ((`end` - start) div samples).int;
       normalize(raw, start, `end`, step)
     )
-  serializeSensorData(normalized)
+  result = serializeSensorData(normalized)
 
 proc error(msg: string): Handler =
   complete(Http500, "Server Error: " & msg, {"Content-Type": "text/plain;charset=utf-8"}.newHttpHeaders)
@@ -84,19 +96,27 @@ let gets = get[
         endParam = s.getOrDefault("end", "")
         samplesParam = s.getOrDefault("samples", "")
       intSegment(proc(sensorId: int): auto =
-        try:
+        scopeAsync do:
+#          try:
           let start = if startParam == "": epochTime().int64 else: startParam.parseInt
           let `end` = if endParam == "": start - (60 * 60 * 24) else: endParam.parseInt # seconds, 24 hours by default
           let samples = if samplesParam == "": 1000 else: samplesParam.parseInt
-          return ok(serializeSensorData(sensorId, start, `end`, samples))
-        except:
-          #let e = getCurrentException()
-          let msg = getCurrentExceptionMsg()
-          return error(msg)
+          let data = await serializeSensorData(sensorId, start, `end`, samples)
+          return ok(data)
+#[
+          except:
+            #let e = getCurrentException()
+            let msg = getCurrentExceptionMsg()
+            return error(msg)
+]#
       )
     )
   ] ~ pathChunk("/api/current")[
-    intSegment(proc (sensorId: int): auto = ok(serializeCurrentState(sensorId)))
+    intSegment(proc (sensorId: int): auto =
+      scopeAsync do:
+        let data = await serializeCurrentState(sensorId)
+        return ok(data)
+    )
   ]
 ]
 
