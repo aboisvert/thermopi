@@ -222,7 +222,7 @@ proc isSummer(): bool =
 proc isWinter(): bool =
   let t = getTime().local()
   case t.month
-  of mNov, mDec, mJan, mFeb, mMar: true
+  of mNov, mDec, mJan, mFeb, mMar, mApr: true
   else: false
 
 proc defaultControlMode(): ControlMode =
