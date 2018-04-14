@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS sensor_data (
   temperature float DEFAULT NULL
 );
 
+CREATE INDEX sensor_data_by_sensor_id_and_instant ON sensor_data (sensor_id, instant, id, temperature);
 
 CREATE TABLE IF NOT EXISTS control_data (
   id integer NOT NULL PRIMARY KEY,
