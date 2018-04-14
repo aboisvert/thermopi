@@ -1,0 +1,10 @@
+[Unit]
+Description=ThermoPi intelligent thermostat
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/thermopi/server
+ExecStart=/home/pi/thermopi/server/thermopi
+Restart=always
+RestartSec=5s
+[Install]
+WantedBy=multi-user.target
