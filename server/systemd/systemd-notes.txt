@@ -1,0 +1,14 @@
+SystemD documentation can be found at:
+https://www.freedesktop.org/wiki/Software/systemd/
+
+# 1) Edit/create the service (see the included service definition file)
+sudo systemctl edit --full thermopi.service
+
+# 2) Restart the service
+sudo systemctl restart thermopi
+
+# 3) Look at logs
+journalctl -u thermopi
+
+# 4) When you are happy that everything works
+systemctl enable thermopi
