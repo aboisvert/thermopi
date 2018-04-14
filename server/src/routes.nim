@@ -1,22 +1,15 @@
 import rosencrantz, httpcore
 import parseutils, strutils, strtabs, times, options
-import db, tdata, tcontrol, temperature, asyncstuff
-
-template measure(str: string, body: untyped): untyped =
-  let start = cpuTime()
-  let result = body
-  let stop = cpuTime()
-  echo str & " - " & $(stop-start)
-  result
+import asyncstuff, db, tdata, tcontrol, tutils, temperature
 
 proc serializeSensorDataHuman(data: seq[SensorData]): string =
-  result = ""
+  result = newStringOfCap(data.len * 40)
   for s in data:
     result.add $s
     result.add "\r\n"
 
 proc serializeSensorData(data: seq[SensorData]): string =
-  result = ""
+  result = newStringOfCap(data.len * 20)
   for s in data:
     result.add $s.instant; result.add "\n"
     result.add $s.temperature; result.add "\n"
@@ -28,7 +21,7 @@ proc serializeCurrentState(sensorId: int): Future[string] {.async.} =
   let latestCurrentSensorData = await callAsync(int, sensorId,     seq[SensorData], getLatestSensorDataAux)
   let latestMainSensorData    = await callAsync(int, mainSensorId, seq[SensorData], getLatestSensorDataAux)
 
-  result = ""
+  result = newStringOfCap(1024)
   result.add serializeSensorData(latestCurrentSensorData)
 
   result.add $controlMode & "\n" # currentHvacMode
