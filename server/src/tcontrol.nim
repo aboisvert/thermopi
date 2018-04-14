@@ -147,8 +147,8 @@ proc doControl*(currentTemperature: Temperature) =
       override = none(Override)
 
   let desiredTemperature = currentDesiredTemperature()
-  echo "current temperature: " & currentTemperature.format(Fahrenheit)
-  echo "desired temperature: " & desiredTemperature.format(Fahrenheit) & " +/- " & $(hysteresis * 1.8)
+  echo "current: " & currentTemperature.format(Fahrenheit) &
+    " desired: " & desiredTemperature.format(Fahrenheit) & " +/- " & $(hysteresis * 1.8)
 
   let oldState = controlState
 
