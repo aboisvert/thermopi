@@ -1,7 +1,14 @@
+
+# nim standard library
 import asynchttpserver, asyncdispatch
 import threadpool, times, os
+
+# third-party libs
 import rosencrantz
-import routes, tcontrol
+
+# thermopi
+import thermopipkg/routes
+import thermopipkg/tcontrol
 
 initTControl()
 
