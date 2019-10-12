@@ -1,19 +1,19 @@
 import asyncdispatch, macros, sugar, threadpool
 export asyncdispatch
 
-macro callAsync*(T: typedesc, input: T, U: typedesc, f: proc (t: T): U): untyped =
+macro callAsync*[T; U](TT: typedesc[T], input: T, UU: typedesc[U], f: proc (t: T): U): untyped =
   let await = ident("await")
   let fut = ident("fut")
   quote do:
     block:
-      proc callp(evt: AsyncEvent, t: `T`): `U` =
+      proc callp(evt: AsyncEvent, t: `TT`): `UU` =
         #echo "callp: " & $t
         let v = `f`(t)
         #echo "trigger: " & $v
         evt.trigger()
         v
 
-      proc async_call(input: `T`): Future[`U`] {.async.} =
+      proc async_call(input: `TT`): Future[`UU`] {.async.} =
         let evt = newAsyncEvent()
         let `fut` = callAsyncAwait(evt)
         #echo "before spawn: " & $input
