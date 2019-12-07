@@ -1,4 +1,4 @@
-import math
+import math, strformat
 
 type Sensor* = object
   id*: int
@@ -34,3 +34,4 @@ proc normalize*(data: seq[SensorData], from1: int64, to1: int64, step: int): seq
     )
     result.add(point)
     t += step
+  echo fmt"normalize: {data.len} -> {result.len}"

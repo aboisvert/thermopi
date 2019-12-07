@@ -12,3 +12,6 @@ journalctl -u thermopi
 
 # 4) When you are happy that everything works
 systemctl enable thermopi
+
+
+ADDENDUM - also set up clear-gpio-pins.service!

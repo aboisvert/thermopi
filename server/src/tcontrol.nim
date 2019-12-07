@@ -42,7 +42,7 @@ let
 
   mySchedule = Schedule(
     weekday: @[
-      Period(start: DayTime(hour:  6, min:  0), desiredTemperature: fahrenheit(65)),
+      Period(start: DayTime(hour:  5, min: 15), desiredTemperature: fahrenheit(65)),
       Period(start: DayTime(hour:  9, min:  0), desiredTemperature: fahrenheit(62)),
       Period(start: DayTime(hour: 17, min:  0), desiredTemperature: fahrenheit(65)),
       Period(start: DayTime(hour: 21, min: 30), desiredTemperature: fahrenheit(58))
@@ -63,6 +63,7 @@ var
   controlMode* = defaultControlMode()
   override*: Option[Override] = none(Override)
   forceHvac*: Option[HvacStatus] = none(HvacStatus)
+  lastPrintedTemperature = 0.int64
 
 # General logic:
 # - if heating mode and current temperature < desired, turn on heating
@@ -86,7 +87,12 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
           result.lastTransition = currentTime
           result.hvac = On
     elif currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis):
-      if currentState.hvac == On:  # no quietTime to turn off
+      when defined(controlPi):
+        let actualState = if digitalRead(heatingPin) == 0: On else: Off # Relay is active low
+      else:
+        let actualState = Off
+
+      if currentState.hvac == On or actualState == On:  # no quietTime to turn off
         result.lastTransition = currentTime
         result.hvac = Off
 
@@ -97,7 +103,12 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
           result.lastTransition = currentTime
           result.hvac = On
     elif currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis):
-      if currentState.hvac == On:  # no quietTime to turn off
+      when defined(controlPi):
+        let actualState = if digitalRead(coolingPin) == 0: On else: Off
+      else:
+        let actualState = Off
+
+      if currentState.hvac == On or actualState == On:  # no quietTime to turn off
         result.lastTransition = currentTime
         result.hvac = Off
 
@@ -141,14 +152,11 @@ proc currentDesiredTemperature*(): Temperature =
 proc doControl*(currentTemperature: Temperature) =
   let currentTime = epochTime().int64
 
-  # check if override has expired
-  if override.isSome():
-    if override.get().until <= currentTime:
-      override = none(Override)
-
   let desiredTemperature = currentDesiredTemperature()
-  echo "current: " & currentTemperature.format(Fahrenheit) &
-    " desired: " & desiredTemperature.format(Fahrenheit) & " +/- " & $(hysteresis * 1.8)
+  if lastPrintedTemperature < currentTime - 60:
+    lastPrintedTemperature = currentTime
+    echo "current: " & currentTemperature.format(Fahrenheit) &
+      " desired: " & desiredTemperature.format(Fahrenheit) & " +/- " & $(hysteresis * 1.8)
 
   let oldState = controlState
 
@@ -216,13 +224,13 @@ proc upcomingPeriod*(): (Period, DateTime) =
 proc isSummer(): bool =
   let t = getTime().local()
   case t.month
-  of mMay, mJun, mJul, mAug, mSep: true
+  of mJun, mJul, mAug, mSep: true
   else: false
 
 proc isWinter(): bool =
   let t = getTime().local()
   case t.month
-  of mNov, mDec, mJan, mFeb, mMar, mApr: true
+  of mOct, mNov, mDec, mJan, mFeb, mMar, mApr, mMay: true
   else: false
 
 proc defaultControlMode(): ControlMode =
@@ -245,14 +253,30 @@ proc controlLoop*(): void =
         sleep(5 * 1000)
         let now = epochTime().int64
 
-        # turn HVAC system on/off based on current temperature of main sensor
-        let sensorData = getLatestSensorData(mainSensorId)
-        if sensorData.len > 0 or forceHvac.isSome:
-          let last = sensorData[0]
-          if last.instant > (now - (5 * 60)):
-            let currentTemperature = celcius(last.temperature)
-            doControl(currentTemperature)
+        # check if override has expired
+        if override.isSome():
+          if override.get().until <= now:
+            echo "Override has expired: " & $override
+            override = none(Override)
 
+        if forceHvac.isSome:
+          echo "HVAC is forced " & $forceHvac.get
+          controlHvac(forceHvac.get)
+        else:
+          # turn HVAC system on/off based on current temperature of main sensor
+          let sensorData = getLatestSensorData(mainSensorId)
+          if sensorData.len > 0:
+            let last = sensorData[0]
+            if last.instant > (now - (5 * 60)):
+              let currentTemperature = celcius(last.temperature)
+              doControl(currentTemperature)
+            else:
+              echo "No reading from main sensor since " & $last.instant & "; turning HVAC off."
+              controlHvac(Off)
+          else:
+            echo "No latest main sensor data ?!? "
+            controlHvac(Off)
+        
         # checkpoit database
         if lastCheckpoint < now - checkpointPeriod:
           db.checkpoint()

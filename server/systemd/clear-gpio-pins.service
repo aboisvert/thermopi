@@ -1,0 +1,12 @@
+[Unit]
+Description=Clear GPIO pins
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/thermopi/server
+ExecStart=/home/pi/thermopi/server/clear-gpio-pins.sh
+
+[Install]
+WantedBy=multi-user.target
