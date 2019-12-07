@@ -11,7 +11,7 @@ bin           = @["thermopi"]
 # Dependencies
 
 requires "nim >= 1.0.0"
-requires "rosencrantz 0.4"
+requires "rosencrantz 0.4.1"
 
 
 task test, "Runs the test suite":
