@@ -13,5 +13,4 @@ bin           = @["thermopi_web"]
 
 # Dependencies
 
-requires "nim >= 0.17.2", "karax .2.0"
-
+requires "nim >= 1.0.0", "karax 1.1.0"
