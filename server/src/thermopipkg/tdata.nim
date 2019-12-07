@@ -34,4 +34,4 @@ proc normalize*(data: seq[SensorData], from1: int64, to1: int64, step: int): seq
     )
     result.add(point)
     t += step
-  echo fmt"normalize: {data.len} -> {result.len}"
+  #echo fmt"normalize: {data.len} -> {result.len}"
