@@ -22,6 +22,7 @@ macro callAsync*[T; U](TT: typedesc[T], input: T, UU: typedesc[U], f: proc (t: T
         `await` `fut`
         let v = ^val
         #echo "after await: " & $v
+        close(evt)
         return v
 
       async_call(`input`)
