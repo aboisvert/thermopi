@@ -1,7 +1,7 @@
 import db_sqlite, times, sequtils, strutils
 import tdata
 
-let db = open("thermopi.db", nil, nil, nil)
+let db = open("thermopi.db", "", "", "")
 
 proc getSensors*(): seq[Sensor] =
   let results = db.getAllRows(sql"SELECT * FROM sensors")

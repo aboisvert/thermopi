@@ -1,4 +1,4 @@
-import asyncdispatch, macros, future, threadpool
+import asyncdispatch, macros, sugar, threadpool
 export asyncdispatch
 
 macro callAsync*(T: typedesc, input: T, U: typedesc, f: proc (t: T): U): untyped =
