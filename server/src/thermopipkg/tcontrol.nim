@@ -42,13 +42,13 @@ let
 
   mySchedule = Schedule(
     weekday: @[
-      Period(start: DayTime(hour:  5, min: 15), desiredTemperature: fahrenheit(65)),
-      Period(start: DayTime(hour:  9, min:  0), desiredTemperature: fahrenheit(62)),
+      Period(start: DayTime(hour:  5, min: 15), desiredTemperature: fahrenheit(68)),
+      Period(start: DayTime(hour:  9, min:  0), desiredTemperature: fahrenheit(64)),
       Period(start: DayTime(hour: 17, min:  0), desiredTemperature: fahrenheit(65)),
       Period(start: DayTime(hour: 21, min: 30), desiredTemperature: fahrenheit(58))
     ],
     weekend: @[
-      Period(start: DayTime(hour:  6, min: 30), desiredTemperature: fahrenheit(65)),
+      Period(start: DayTime(hour:  6, min: 30), desiredTemperature: fahrenheit(68)),
       Period(start: DayTime(hour: 21, min: 30), desiredTemperature: fahrenheit(58))
     ]
   )
