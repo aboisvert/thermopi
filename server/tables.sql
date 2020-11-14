@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS sensors (
 
 INSERT INTO sensors (id, name) values (1, 'Living Room');
 INSERT INTO sensors (id, name) values (2, 'Garage');
+INSERT INTO sensors (id, name) values (3, 'Outside');
 
 DROP TABLE sensor_data;
 
