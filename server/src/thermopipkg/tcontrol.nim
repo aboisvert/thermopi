@@ -72,6 +72,19 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
   currentTemperature: Temperature, desiredTemperature: Temperature): ControlState =
   result = currentState
 
+  var actualState = Off
+  when defined(controlPi):
+    case currentMode
+    of NoControl:
+      actualState = Off
+    of Heating:
+      actualState = if digitalRead(heatingPin) == 0: On else: Off
+    of Cooling:
+      actualState = if digitalRead(coolingPin) == 0: On else: Off
+  else:
+    actualState = Off
+
+
   case currentMode
   of NoControl:
     result.hvac = Off
@@ -82,32 +95,22 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
       #echo $desiredTemperature.toCelcius
       #echo $hysteresis
       #echo $(desiredTemperature.toCelcius - hysteresis)
-      if currentState.hvac == Off:
+      if actualState == Off:
         if currentTime > (currentState.lastTransition + quietTime):
           result.lastTransition = currentTime
           result.hvac = On
     elif currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis):
-      when defined(controlPi):
-        let actualState = if digitalRead(heatingPin) == 0: On else: Off # Relay is active low
-      else:
-        let actualState = Off
-
       if currentState.hvac == On or actualState == On:  # no quietTime to turn off
         result.lastTransition = currentTime
         result.hvac = Off
 
   of Cooling:
     if currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis):
-      if currentState.hvac == Off:
+      if actualState == Off:
         if currentTime > (currentState.lastTransition + quietTime):
           result.lastTransition = currentTime
           result.hvac = On
     elif currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis):
-      when defined(controlPi):
-        let actualState = if digitalRead(coolingPin) == 0: On else: Off
-      else:
-        let actualState = Off
-
       if currentState.hvac == On or actualState == On:  # no quietTime to turn off
         result.lastTransition = currentTime
         result.hvac = Off
@@ -276,7 +279,7 @@ proc controlLoop*(): void =
           else:
             echo "No latest main sensor data ?!? "
             controlHvac(Off)
-        
+
         # checkpoit database
         if lastCheckpoint < now - checkpointPeriod:
           db.checkpoint()
