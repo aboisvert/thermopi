@@ -127,11 +127,17 @@ let gets = get[
 let posts = post[
   path("/api/temperature")[
     body(proc(str: string): auto =
-      let lines = str.splitLines()
-      let sensor = lines[0].parseInt()
-      let temperature = lines[1].parseFloat()
-      let rowid = insertSensorData(sensor, temperature)
-      ok("THXBYE - rowid " & $rowid)
+      try:
+        let lines = str.splitLines()
+        let sensor = lines[0].parseInt()
+        let temperature = lines[1].parseFloat()
+        let rowid = insertSensorData(sensor, temperature)
+        return ok("THXBYE - rowid " & $rowid)
+      except:
+        let msg = getCurrentExceptionMsg()
+        echo msg
+        return error(msg)
+
     )
   ] ~ path("/api/forceHvac")[
     body(proc(str: string): auto =
