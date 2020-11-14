@@ -10,11 +10,17 @@ proc getSensors*(): seq[Sensor] =
     name: it[1]))
 
 proc insertSensorData*(instant: int64, sensor: int, temperature: float): int64 =
-  discard db.tryInsertId(
-    sql"INSERT INTO sensor_data (instant, sensor_id, temperature) VALUES (?,?,?)",
-    instant, sensor, temperature)
-  db.exec(sql"COMMIT")
-
+  db.exec(sql"BEGIN")
+  try:
+    let id = db.tryInsertId(
+      sql"INSERT INTO sensor_data (instant, sensor_id, temperature) VALUES (?,?,?)",
+      instant, sensor, temperature)
+    db.exec(sql"COMMIT")
+    return id
+  except:
+    db.exec(sql"ROLLBACK")
+    let e = getCurrentException()
+    raise e
 
 proc insertSensorData*(sensor: int, temperature: float): int64 =
   let epoch = epochTime().int64
