@@ -467,6 +467,9 @@ proc currentTemperatureLoaded(sensor: int): proc (httpStatus: int, response: cst
   result = proc (httpStatus: int, response: cstring) =
     currentTemperatureLoaded(httpStatus, response, sensor)
 
+proc random(max: int): int =
+  rand(max)
+
 proc randomCelcius(): float =
   10.float + random(10).float + random(10) / 10
 
