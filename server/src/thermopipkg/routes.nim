@@ -1,5 +1,5 @@
 import rosencrantz, httpcore
-import parseutils, strutils, strtabs, times, options
+import strutils, strtabs, times, options
 import asyncstuff, db, tdata, tcontrol, tutils, temperature
 
 proc serializeSensorDataHuman(data: seq[SensorData]): string =
@@ -18,8 +18,8 @@ proc serializeCurrentState(sensorId: int): Future[string] {.async.} =
   proc getLatestSensorDataAux(sensorId: int): seq[SensorData] =
     getLatestSensorData(sensorId)
 
-  let latestCurrentSensorData = await callAsync(int, sensorId,     seq[SensorData], getLatestSensorDataAux)
-  let latestMainSensorData    = await callAsync(int, mainSensorId, seq[SensorData], getLatestSensorDataAux)
+  let latestCurrentSensorData = await callAsync("getLatestSensorDataAux", int, sensorId,     seq[SensorData], getLatestSensorDataAux)
+  let latestMainSensorData    = await callAsync("getLatestSensorDataAux",int, mainSensorId, seq[SensorData], getLatestSensorDataAux)
 
   result = newStringOfCap(1024)
   result.add serializeSensorData(latestCurrentSensorData)
@@ -27,7 +27,11 @@ proc serializeCurrentState(sensorId: int): Future[string] {.async.} =
   result.add $controlMode & "\n" # currentHvacMode
   result.add $controlState.hvac & "\n" # currentHvacStatus
 
-  result.add $latestMainSensorData[0].temperature & "\n" # mainSensorTemperature
+  if latestMainSensorData.len > 0:
+    result.add $latestMainSensorData[0].temperature & "\n" # mainSensorTemperature
+  else:
+    result.add "???" & "\n"
+
   result.add $currentDesiredTemperature().toCelcius() & "\n" # desiredTemperature
 
   let (upcomingPeriod, upcomingTime) = upcomingPeriod()
@@ -53,7 +57,7 @@ proc serializeSensorData(sensorId: int, start: int64, `end`: int64, samples: int
     measure("getSensorData") do:
       getSensorData(sensorId, start, `end`)
 
-  let raw = await callAsync(params.type, params, seq[SensorData], getSensorDataAux)
+  let raw = await callAsync("getSensorDataAux", params.type, params, seq[SensorData], getSensorDataAux)
 
   let normalized =
     if raw.len < samples and false: raw

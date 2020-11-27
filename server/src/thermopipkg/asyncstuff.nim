@@ -1,33 +1,46 @@
-import asyncdispatch, macros, sugar, threadpool
+import asyncdispatch
 export asyncdispatch
 
-macro callAsync*[T; U](TT: typedesc[T], input: T, UU: typedesc[U], f: proc (t: T): U): untyped =
-  let await = ident("await")
-  let fut = ident("fut")
-  quote do:
-    block:
-      proc callp(evt: AsyncEvent, t: `TT`): `UU` =
-        #echo "callp: " & $t
-        let v = `f`(t)
-        #echo "trigger: " & $v
-        evt.trigger()
-        v
+when defined(multithreaded):
+  import sugar, threadpool
+  proc callProcAndTrigger[IN; OUT](procName: string, p: proc (input: IN): OUT, input: IN, event: AsyncEvent): OUT =
+    echo "Call " & procName
+    result = p(input)
+    event.trigger()
+    echo "Called " & procName
 
-      proc async_call(input: `TT`): Future[`UU`] {.async.} =
-        let evt = newAsyncEvent()
-        let `fut` = callAsyncAwait(evt)
-        #echo "before spawn: " & $input
-        let val = spawn callp(evt, input)
-        #echo "after spawn: " & $input
-        `await` `fut`
-        let v = ^val
-        #echo "after await: " & $v
-        close(evt)
-        return v
+  var outstanding = 0
 
-      async_call(`input`)
+  proc callAsync*[IN; OUT](
+    procName: string,
+    IN_TYPE: typedesc[IN],
+    input: IN,
+    OUT_TYPE: typedesc[OUT],
+    p: proc (input: IN): OUT {.gcsafe, nimcall.}
+  ): Future[OUT] {.async.} =
+    let name = "callAsync:" & procName & " outstanding: " & $outstanding
+    outstanding += 1
+    let id = outstanding
+    echo name
+    let event = newAsyncEvent()
+    var fut = newFuture[void]("callAsync:" & procName)
+    GC_ref(fut)
+    addEvent(event, (fd: AsyncFD) => (fut.complete(); true))
+    let procResult: FlowVar[OUT] = spawn callProcAndTrigger(procName, p, input, event)
+    await fut
+    GC_unref(fut)
+    outstanding -= 1
+    echo "callAsync^" & procName & " id: " & $id & " outstanding: " & $outstanding
+    result = ^procResult
+    echo "result^" & procName & " id: " & $id & " outstanding: " & $outstanding
+    close(event)
 
-proc callAsyncAwait*(evt: AsyncEvent): Future[void] =
-  var fut = newFuture[void]("callAsync")
-  addEvent(evt, (fd: AsyncFD) => (fut.complete(); true))
-  return fut
+else: # not multithreaded
+  proc callAsync*[IN; OUT](
+    procName: string,
+    IN_TYPE: typedesc[IN],
+    input: IN,
+    OUT_TYPE: typedesc[OUT],
+    p: proc (input: IN): OUT {.gcsafe, nimcall.}
+  ): Future[OUT] {.async.} =
+    result = p(input)
