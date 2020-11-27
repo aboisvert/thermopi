@@ -1,8 +1,7 @@
 
 template measure*(str: string, body: untyped): untyped =
-  let start = cpuTime()
+  #let start = cpuTime()
   let result = body
-  let stop = cpuTime()
+  #let stop = cpuTime()
   #echo str & " - " & $(stop-start)
   result
-  

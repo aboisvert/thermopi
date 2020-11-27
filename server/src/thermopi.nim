@@ -1,7 +1,7 @@
 
 # nim standard library
 import asynchttpserver, asyncdispatch
-import threadpool, times, os
+import threadpool
 
 # third-party libs
 import rosencrantz

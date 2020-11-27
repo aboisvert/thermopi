@@ -1,4 +1,4 @@
-import math, strformat
+import math
 
 type Sensor* = object
   id*: int
