@@ -1,6 +1,7 @@
 import rosencrantz, httpcore
 import strutils, strtabs, times, options
 import asyncstuff, db, tdata, tcontrol, tutils, temperature
+from os import sleep
 
 proc serializeSensorDataHuman(data: seq[SensorData]): string =
   result = newStringOfCap(data.len * 40)
@@ -15,11 +16,8 @@ proc serializeSensorData(data: seq[SensorData]): string =
     result.add $s.temperature; result.add "\n"
 
 proc serializeCurrentState(sensorId: int): Future[string] {.async.} =
-  proc getLatestSensorDataAux(sensorId: int): seq[SensorData] =
-    getLatestSensorData(sensorId)
-
-  let latestCurrentSensorData = await callAsync("getLatestSensorDataAux", int, sensorId,     seq[SensorData], getLatestSensorDataAux)
-  let latestMainSensorData    = await callAsync("getLatestSensorDataAux",int, mainSensorId, seq[SensorData], getLatestSensorDataAux)
+  let latestCurrentSensorData = await callAsync("getLatestSensorData", int, sensorId,     seq[SensorData], getLatestSensorData)
+  let latestMainSensorData    = await callAsync("getLatestSensorData", int, mainSensorId, seq[SensorData], getLatestSensorData)
 
   result = newStringOfCap(1024)
   result.add serializeSensorData(latestCurrentSensorData)
@@ -72,6 +70,12 @@ proc serializeSensorData(sensorId: int, start: int64, `end`: int64, samples: int
 proc error(msg: string): Handler =
   complete(Http500, "Server Error: " & msg, {"Content-Type": "text/plain;charset=utf-8"}.newHttpHeaders)
 
+var dummyVar = 0
+proc dummy(x: int): int =
+  sleep(1000)
+  dummyVar += 1
+  result = dummyVar
+
 let gets = get[
   path("/")[
     if defined(debug):
@@ -90,10 +94,15 @@ let gets = get[
       let before = now - (60 * 60 * 12) # seconds
       let body = serializeSensorDataHuman(getSensorData(before, now))
       return ok(body)
+  ] ~ path("/test")[
+    scopeAsync do:
+      let dummy = await callAsync("dummy", int, 0, int, dummy)
+      return ok($dummy)
   ] ~ path("/api/sensors")[
-    scope do:
+    scopeAsync do:
       var str = ""
-      for s in getSensors():
+      let sensors = await callAsync("getSensors", int, 0, seq[Sensor], getSensors)
+      for s in sensors:
         str.add $(s.id) & "\n"
         str.add $s.name & "\n"
       return ok($str)
@@ -105,25 +114,27 @@ let gets = get[
         samplesParam = s.getOrDefault("samples", "")
       intSegment(proc(sensorId: int): auto =
         scopeAsync do:
-#          try:
-          let start = if startParam == "": epochTime().int64 else: startParam.parseInt
-          let `end` = if endParam == "": start - (60 * 60 * 24) else: endParam.parseInt # seconds, 24 hours by default
-          let samples = if samplesParam == "": 1000 else: samplesParam.parseInt
-          let data = await serializeSensorData(sensorId, start, `end`, samples)
-          return ok(data)
-#[
+          try:
+            let start = if startParam == "": epochTime().int64 else: startParam.parseInt
+            let `end` = if endParam == "": start - (60 * 60 * 24) else: endParam.parseInt # seconds, 24 hours by default
+            let samples = if samplesParam == "": 1000 else: samplesParam.parseInt
+            let data = await serializeSensorData(sensorId, start, `end`, samples)
+            return ok(data)
           except:
             #let e = getCurrentException()
             let msg = getCurrentExceptionMsg()
             return error(msg)
-]#
       )
     )
   ] ~ pathChunk("/api/current")[
     intSegment(proc (sensorId: int): auto =
       scopeAsync do:
-        let data = await serializeCurrentState(sensorId)
-        return ok(data)
+        try:
+          let data = await serializeCurrentState(sensorId)
+          return ok(data)
+        except:
+          let msg = getCurrentExceptionMsg()
+          return error(msg)
     )
   ]
 ]

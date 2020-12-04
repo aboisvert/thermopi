@@ -1,15 +1,21 @@
 import db_sqlite, times, sequtils, strutils
 import tdata
 
-let db = open("thermopi.db", "", "", "")
+var db {.threadvar.}: DbConn
 
-proc getSensors*(): seq[Sensor] =
+proc initThreadVars() =
+  if (db == nil):
+    db = open("thermopi.db", "", "", "")
+
+proc getSensors*(dummy: int): seq[Sensor] =
+  initThreadVars()
   let results = db.getAllRows(sql"SELECT * FROM sensors")
   results.mapIt(Sensor(
     id: it[0].parseInt,
     name: it[1]))
 
 proc insertSensorData*(instant: int64, sensor: int, temperature: float): int64 =
+  initThreadVars()
   db.exec(sql"BEGIN")
   try:
     let id = db.tryInsertId(
@@ -34,6 +40,7 @@ proc rowsToSensorData(rows: seq[seq[string]]): seq[SensorData] =
     temperature: it[3].parseFloat))
 
 proc getSensorData*(from1: int64, to1: int64): seq[SensorData] =
+  initThreadVars()
   let rows = db.getAllRows(
     sql"SELECT * from sensor_data WHERE (instant >= ?) and (instant <= ?)",
     from1,
@@ -41,6 +48,7 @@ proc getSensorData*(from1: int64, to1: int64): seq[SensorData] =
   rowsToSensorData(rows)
 
 proc getSensorData*(sensor: int, from1: int64, to1: int64): seq[SensorData] =
+  initThreadVars()
   let rows = db.getAllRows(
     sql"SELECT * from sensor_data WHERE (sensor_id = ?) and (instant >= ?) and (instant <= ?)",
     sensor,
@@ -49,6 +57,7 @@ proc getSensorData*(sensor: int, from1: int64, to1: int64): seq[SensorData] =
   rowsToSensorData(rows)
 
 proc getLatestSensorData*(sensor: int): seq[SensorData] =
+  initThreadVars()
   let rows = db.getAllRows(
     sql"SELECT * from sensor_data WHERE (sensor_id = ?) ORDER BY instant DESC LIMIT 1", sensor)
   rowsToSensorData(rows)
@@ -61,7 +70,5 @@ proc `$`*(s: SensorData): string =
     ", temperature=" & $s.temperature & ")"
 
 proc checkpoint*() =
+  initThreadVars()
   db.exec(sql"PRAGMA wal_checkpoint")
-
-
-
