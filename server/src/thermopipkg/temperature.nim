@@ -1,4 +1,4 @@
-import math
+import math, strformat
 
 type
   TemperatureUnit* = enum
@@ -34,14 +34,12 @@ proc toFahrenheit*(t: Temperature): float =
 proc format*(t: Temperature, unit: TemperatureUnit): string =
   case unit
   of Celcius:
-    $t.toCelcius & "C"
+    fmt"{t.toCelcius:0.1f}C"
   of Fahrenheit:
-    $t.toFahrenheit & "F"
+    fmt"{t.toFahrenheit:0.1f}F"
 
 proc `<`*(t1: Temperature, t2: Temperature): bool =
   t1.toCelcius < t2.toCelcius
 
 proc `$`*(t: Temperature): string =
-  case t.unit
-  of Celcius: $t.value & "C"
-  of Fahrenheit: $t.value & "F"
+  format(t, t.unit)

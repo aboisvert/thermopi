@@ -1,25 +1,19 @@
 
-# nim standard library
-import asynchttpserver, asyncdispatch
-import threadpool
-
-# third-party libs
-import rosencrantz
-
-# thermopi
+import guildenstern
+import guildenstern/ctxfull
+import guildenstern/ctxheader
 import thermopipkg/routes
 import thermopipkg/tcontrol
+import threadpool
+
+const port {.intdefine.} = 8080
+
+echo "Thermopi starting on port ", port
 
 initTControl()
-
 spawn controlLoop()
 
-let server = newAsyncHttpServer()
-
-try:
-  asyncCheck server.serve(Port(8080), handler)
-  runForever()
-except:
-  let e = getCurrentException()
-  let msg = getCurrentExceptionMsg()
-  echo "server.serve() exception ", repr(e), " with message ", msg
+var server = new GuildenServer
+server.initFullCtx(handleHttpRequest, port)
+server.registerErrornotifier(errorNotifier)
+server.serve(multithreaded = true)
