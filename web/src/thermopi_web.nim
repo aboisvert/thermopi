@@ -1,6 +1,6 @@
 import karax / [vdom, vstyles, kdom, karax, karaxdsl, kajax, jstrutils, compact, jjson, jdict]
 import jsffi except `&`
-import random, sequtils, strutils, times
+import random, sequtils, strutils, times, strformat
 import chartjs, momentjs, url_js
 import temperature_units, times
 
@@ -20,8 +20,9 @@ type
   HvacStatus = enum Off, On
 
 const
-  httpApi = if defined(local): cstring"http://localhost:8080/api"
-            else: cstring"http://thermopi:8080/api"
+  host {.strdefine.} = if defined(local): "localhost" else: "thermopi"
+  port {.strdefine.} = "8080"
+  httpApi = fmt"http://${host}:${port}/api"
 
 let
   LF = cstring"" & "\n"
@@ -202,6 +203,11 @@ proc createDom(data: RouterData): VNode =
         tdiv(class = "container"):
           h1(class = "title"):
             text "ThermoPi"
+
+      section():
+        tdiv(class = "is-centered"):
+          p:
+            text httpApi
 
       # columns
       section():
