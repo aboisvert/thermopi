@@ -22,7 +22,7 @@ type
 const
   host {.strdefine.} = if defined(local): "localhost" else: "thermopi"
   port {.strdefine.} = "8080"
-  httpApi = fmt"http://${host}:${port}/api"
+  httpApi = fmt"http://{host}:{port}/api"
 
 let
   LF = cstring"" & "\n"
