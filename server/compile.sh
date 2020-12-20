@@ -1,3 +1,2 @@
 #!/bin/sh -e
-nimble c -d:controlPi -d:release src/thermopi.nim
-mv src/thermopi .
+nimble build -d:controlPi -d:release
