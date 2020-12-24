@@ -36,7 +36,8 @@ proc defaultControlMode(): ControlMode
 proc calcDesiredTemperature(schedule: Schedule, dt: DateTime): Temperature
 
 let
-  hysteresis = 0.5 # celcius
+  hysteresis_above = 1.0 # celcius
+  hysteresis_below = 0.5 # celcius
 
   quietTime = 5 * 60 # seconds between on/off transition (duty-cycle control)
 
@@ -90,7 +91,7 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
     result.hvac = Off
 
   of Heating:
-    if currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis):
+    if currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis_below):
       #echo $currentTemperature.toCelcius
       #echo $desiredTemperature.toCelcius
       #echo $hysteresis
@@ -99,18 +100,18 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
         if currentTime > (currentState.lastTransition + quietTime):
           result.lastTransition = currentTime
           result.hvac = On
-    elif currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis):
+    elif currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis_above):
       if currentState.hvac == On or actualState == On:  # no quietTime to turn off
         result.lastTransition = currentTime
         result.hvac = Off
 
   of Cooling:
-    if currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis):
+    if currentTemperature.toCelcius > (desiredTemperature.toCelcius + hysteresis_below):
       if actualState == Off:
         if currentTime > (currentState.lastTransition + quietTime):
           result.lastTransition = currentTime
           result.hvac = On
-    elif currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis):
+    elif currentTemperature.toCelcius < (desiredTemperature.toCelcius - hysteresis_above):
       if currentState.hvac == On or actualState == On:  # no quietTime to turn off
         result.lastTransition = currentTime
         result.hvac = Off
@@ -159,7 +160,8 @@ proc doControl*(currentTemperature: Temperature) =
   if lastPrintedTemperature < currentTime - 60:
     lastPrintedTemperature = currentTime
     echo "current: " & currentTemperature.format(Fahrenheit) &
-      " desired: " & desiredTemperature.format(Fahrenheit) & " +/- " & $(hysteresis * 1.8)
+      " desired: " & desiredTemperature.format(Fahrenheit) &
+      " +/- (" & $(hysteresis_above * C_TO_F_FACTOR) & ", " & $(hysteresis_below * C_TO_F_FACTOR) & ")"
 
   let oldState = controlState
 

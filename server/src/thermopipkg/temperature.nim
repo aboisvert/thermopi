@@ -9,6 +9,10 @@ type
     value: float
     unit: TemperatureUnit
 
+const
+  C_TO_F_FACTOR* = 1.8
+  C_TO_F_OFFSET* = 32
+
 proc celcius*(c: float): Temperature =
   Temperature(value: c, unit: Celcius)
 
@@ -16,10 +20,10 @@ proc fahrenheit*(f: float): Temperature =
   Temperature(value: f, unit: Fahrenheit)
 
 proc celciusToFahrenheit*(c: float): float =
-  math.round((c * 1.8) + 32, 2)
+  math.round((c * C_TO_F_FACTOR) + C_TO_F_OFFSET, 2)
 
 proc fahrenheitToCelcius*(f: float): float =
-  math.round((f - 32) / 1.8, 2)
+  math.round((f - C_TO_F_OFFSET) / C_TO_F_FACTOR, 2)
 
 proc toCelcius*(t: Temperature): float =
   case t.unit

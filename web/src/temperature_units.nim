@@ -1,15 +1,20 @@
 import karax / jstrutils
 import math, times
+import temperature
 
 type
   TemperatureUnit* = enum
     Celcius, Fahrenheit
 
+const
+  C_TO_F_FACTOR* = 1.8
+  C_TO_F_OFFSET* = 32
+
 proc celciusToFahrenheit*(c: float): float =
-  math.round(c * 1.8 + 32, 2)
+  math.round(c * C_TO_F_FACTOR + C_TO_F_OFFSET, 2)
 
 proc fahrenheitToCelcius*(f: float): float =
-  math.round((f - 32) / 1.8, 2)
+  math.round((f - C_TO_F_OFFSET) / C_TO_F_FACTOR, 2)
 
 proc format*(celcius: float, unit: TemperatureUnit): cstring =
   case unit
