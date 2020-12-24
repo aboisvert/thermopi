@@ -1,6 +1,5 @@
 import karax / jstrutils
 import math, times
-import temperature
 
 type
   TemperatureUnit* = enum
