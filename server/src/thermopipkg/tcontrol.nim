@@ -196,8 +196,8 @@ proc controlHvac(c: HvacStatus) =
       digitalWrite(heatingPin, 1) # Force heating off (relay is active low)
 
 proc currentDesiredTemperature*(): Temperature =
-  if override.isSome():
-    let override = override.get()
+  if isOverride():
+    let override = getOverride()
     override.temperature
   else:
     calcDesiredTemperature(mySchedule, getTime().local())
@@ -309,10 +309,11 @@ proc controlLoop*(): void =
         let now = epochTime().int64
 
         # check if override has expired
-        if override.isSome():
-          if override.get().until <= now:
+        if isOverride():
+          let override = getOverride()
+          if override.until <= now:
             echo "Override has expired: " & $override
-            override = none(Override)
+            clearOverride()
 
         if forceHvac.isSome:
           echo "HVAC is forced " & $forceHvac.get
