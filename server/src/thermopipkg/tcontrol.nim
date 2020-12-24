@@ -1,4 +1,4 @@
-import options, os, times
+import options, os, times, strutils
 import temperature, datetime
 import db, tdata, options
 
@@ -34,6 +34,7 @@ type
 # Forward declarations
 proc defaultControlMode(): ControlMode
 proc calcDesiredTemperature(schedule: Schedule, dt: DateTime): Temperature
+proc saveOverride*()
 
 let
   hysteresis_above = 1.0 # celcius
@@ -62,9 +63,56 @@ when defined(controlPi):
 var
   controlState* = ControlState(hvac: Off, lastTransition: 0)
   controlMode* = defaultControlMode()
-  override*: Option[Override] = none(Override)
+  override: Option[Override] = none(Override)
   forceHvac*: Option[HvacStatus] = none(HvacStatus)
   lastPrintedTemperature = 0.int64
+
+proc `$`*(o: Override): string =
+  "Override(" &
+    "temperature: " & $o.temperature &
+    ", until: " & format(fromUnix(o.until).local(), "d MMMM yyyy HH:mm:ss") &
+    ")"
+
+const OVERRIDE_FILENAME {.strdefine.} = "override.thermopi"
+
+proc isOverride*: bool = override.isSome
+proc getOverride*: Override = override.get
+proc getOverrideOpt*: Option[Override] = override
+
+proc setOverride*(newValue: Override) =
+  override = some(newValue)
+  saveOverride()
+
+proc clearOverride*() =
+  override = none[Override]()
+
+proc saveOverride*() =
+  echo "Save override: ", override
+  let f = open(OVERRIDE_FILENAME, FileMode.fmWrite)
+  defer: f.close()
+  if override.isNone:
+    f.write("# none")
+  else:
+    let o = override.get
+    f.write o.temperature.format(Celcius), " # ", o.temperature.format(Fahrenheit), "\n"
+    f.write o.until, " # ", format(fromUnix(o.until).local(), "d MMMM yyyy HH:mm:ss")
+
+proc loadOverride*(): Option[Override] =
+  if not fileExists(OVERRIDE_FILENAME): return none(Override)
+  let f = open(OVERRIDE_FILENAME, FileMode.fmRead)
+  defer: f.close()
+
+  let temperature = block:
+    let l1 = f.readLine()
+    if l1.contains("none"): return none(Override)
+    celcius(parseFloat(l1.split('#')[0].split('C')[0]))
+
+  let until = block:
+    let l2 = f.readLine()
+    parseBiggestInt(l2.split('#')[0].strip())
+
+  result = some(Override(temperature: temperature, until: until))
+  echo "Loaded override: ", result
 
 # General logic:
 # - if heating mode and current temperature < desired, turn on heating
@@ -120,6 +168,7 @@ proc updateState(currentState: ControlState, currentMode: ControlMode, currentTi
     result.hvac = forceHvac.get()
 
 proc initTControl*() =
+  override = loadOverride()
   when defined(controlPi):
     if (wiringPiSetup() == -1):
       raise newException(OSError, "wiringPiSetup failed")

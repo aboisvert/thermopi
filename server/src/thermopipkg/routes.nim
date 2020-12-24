@@ -70,9 +70,10 @@ proc serializeCurrentState(sensorId: int): string =
   result.add $upcomingTime.toTime().toUnix() & "\n" # upcomingTime
   result.add $upcomingPeriod.desiredTemperature.toCelcius() & "\n" # upcomingTemperature
 
-  if override.isSome:
-    result.add $options.get(override).temperature.toCelcius() & "\n" # overrideTemperature
-    result.add $options.get(override).until & "\n" # overrideUntil
+  if isOverride():
+    let override = getOverride()
+    result.add $override.temperature.toCelcius() & "\n" # overrideTemperature
+    result.add $override.until & "\n" # overrideUntil
   else:
     result.add "0\n" # overrideTemperature
     result.add "0\n" # overrideUntil
@@ -218,13 +219,13 @@ proc handleHttpPost(uri: Uri, ctx: HttpCtx) =
     let overrideTemperature = lines[0].parseFloat
     let overrideUntil = lines[1].parseInt
     if overrideUntil != 0:
-      override = some(Override(
+      setOverride(Override(
         temperature: celcius(overrideTemperature),
         until: overrideUntil
         ))
     else:
-      override = none(Override)
-    ok("THXBYE " & $override, ctx)
+      clearOverride()
+    ok("THXBYE " & $getOverrideOpt(), ctx)
   else:
     error("Unknown/unexpected resource: " & uri.path, ctx)
 
