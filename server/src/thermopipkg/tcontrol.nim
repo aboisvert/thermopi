@@ -85,6 +85,7 @@ proc setOverride*(newValue: Override) =
 
 proc clearOverride*() =
   override = none[Override]()
+  saveOverride()
 
 proc saveOverride*() =
   echo "Save override: ", override
