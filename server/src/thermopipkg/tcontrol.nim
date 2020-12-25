@@ -173,8 +173,10 @@ proc initTControl*() =
   when defined(controlPi):
     if (wiringPiSetup() == -1):
       raise newException(OSError, "wiringPiSetup failed")
-    heatingPin.pinMode(OUTPUT)
-    coolingPin.pinMode(OUTPUT)
+
+    for pin in [heatingPin, coolingPin]:
+      pin.pinMode(OUTPUT)
+      pin.digitalWrite(1) # relay is active low
 
 proc controlHvac(c: HvacStatus) =
   echo "Control HVAC: " & $controlMode & " -> " & $c
