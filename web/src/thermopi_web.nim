@@ -1,7 +1,7 @@
 import karax / [vdom, vstyles, kdom, karax, karaxdsl, kajax, jstrutils, jjson]
 import jsffi except `&`
-import random, sequtils, times, strformat
-import chartjs, momentjs, url_js
+import random, sequtils, times, strformat, uri, tables, options
+import chartjs, momentjs
 import temperature_units, times
 
 type
@@ -10,7 +10,7 @@ type
 
   Sensor = object
     id: int
-    name: cstring
+    name: string
 
   Window = enum
     T1h, T12h, T24h, T48h, T7days, T30days
@@ -25,7 +25,7 @@ const
   httpApi = fmt"http://{host}:{port}/api"
 
 let
-  LF = cstring"" & "\n"
+  LF = "\n".cstring
 
 var
   currentView = Main
@@ -55,6 +55,7 @@ var
 
   stubSensors = defined(stubs) # set to true when testing without a live server
   initialized = false # set to true after the first postRender()
+  reloadChartData = false
 
   chart: Chart # temperature chart
 
@@ -69,9 +70,10 @@ proc getCurrentSensor(): Sensor =
 proc setCurrentSensor(s: Sensor) =
   currentSensor = s.id
 
-proc getSensorByName(name: cstring): Sensor =
+proc getSensorByName(name: cstring): Option[Sensor] =
   for s in sensors:
-    if s.name == name: return s
+    if s.name == name: return some(s)
+  none(Sensor)
 
 proc durationInSeconds(w: Window): int =
   case w
@@ -164,35 +166,65 @@ proc overrideAddTime(difference: int) =
 
 proc createDom(data: RouterData): VNode =
   ## main renderer
+  var userErrors = ""
 
-  let params = queryParams()
+  var params = initTable[string, string]()
+  if data.hashPart != nil:
+    for param in ($data.hashPart)[1 .. ^1].split(","):
+      let parts = param.split("=")
+      if parts.len == 2: params[$parts[0]] = decodeUrl($parts[1])
+      else: userErrors &= "Invalid query param: " & param & "\n"
 
-  let window = params.get("window")
+  let window = params.getOrDefault("window", "24h")
   if   window == "1h":     currentWindow = T1h
   elif window == "12h":    currentWindow = T12h
   elif window == "24h":    currentWindow = T24h
   elif window == "48h":    currentWindow = T48h
   elif window == "7days":  currentWindow = T7days
   elif window == "30days": currentWindow = T30days
-  echo "currentWindow: " & $currentWindow
+  else:
+    userErrors &= "Invalid window param: " & window
+    currentWindow = T24h
 
   let beforeUnit = currentUnit
-  if data.hashPart == "#celcius": currentUnit = Celcius
-  elif data.hashPart == "#fahrenheit": currentUnit = Fahrenheit
-  if currentUnit != beforeUnit: loadChartData()
+  currentUnit = block:
+    let unit = params.getOrDefault("unit", "")
+    if   unit == "celcius":    Celcius
+    elif unit == "fahrenheit": Fahrenheit
+    else:
+      userErrors &= "Invalid unit param: " & unit
+      Fahrenheit
+  if currentUnit != beforeUnit:
+    reloadChartData = true
 
-  var part = cstring""
-  if data.hashPart.len > 1:
-    part = data.hashPart.split(cstring"#")[1]
-  echo "part: " & part
+  let beforeSensor = currentSensor
+  let sensorParam = params.getOrDefault("sensor", "")
+  if sensorParam != "":
+    let newSensor = getSensorByName(sensorParam)
+    if newSensor.isSome:
+      if currentSensor != newSensor.get.id:
+        currentSensor = newSensor.get.id
+        loadCurrentTemperature()
+        reloadChartData = true
+    else:
+      userErrors &= "Invalid sensor param: " & sensorParam
 
-  if part != "":
-    let hashSensor = getSensorByName(part)
-    echo "hashSensor: " & $hashSensor
-    if hashSensor.id != 0 and currentSensor != hashSensor.id:
-      currentSensor = hashSensor.id
-      loadCurrentTemperature()
-      loadChartData()
+
+  proc withNewParam(name: string, value: string): string =
+    echo "params before ", params
+    var newParams = params # copy
+    echo "add ", name, "=", value
+    newParams[name] = value
+    echo "params after ", params
+    echo "new params after ", newParams
+    var i = 0
+    result = "#"
+    for name, value in newParams:
+      if i != 0: result &= ","
+      result &= name
+      result &= "="
+      result &= value
+      i.inc
 
   case currentView
   of Main:
@@ -208,6 +240,10 @@ proc createDom(data: RouterData): VNode =
         tdiv(class = "is-centered"):
           p:
             text httpApi
+        if userErrors != "":
+          tdiv(class = "is-centered"):
+            p:
+              text userErrors
 
       # columns
       section():
@@ -221,7 +257,7 @@ proc createDom(data: RouterData): VNode =
                     ol:
                       for s in sensors:
                         li(value = $s.id):
-                          a(href="#" & $s.name):
+                          a(href=withNewParam("sensor", s.name)):
                             text $s.name
                             if currentSensor == s.id:
                               text " [*]"
@@ -243,10 +279,10 @@ proc createDom(data: RouterData): VNode =
                   tdiv(id="units"):
                     case currentUnit
                     of Celcius:
-                      a(href="#fahrenheit"):
+                      a(href=withNewParam("unit", "fahrenheit")):
                         text "[Switch to Fahrenheit]"
                     of Fahrenheit:
-                      a(href="#celcius"):
+                      a(href=withNewParam("unit", "celcius")):
                         text "[Switch to Celcius]"
 
           tdiv(class = "column"):
@@ -340,23 +376,26 @@ proc createDom(data: RouterData): VNode =
             section(class = "window"):
               text "Window"
               text " "
-              a(href="?window=1h"):
+              a(href=withNewParam("window", "1h")):
                 text "1h"
               text " "
-              a(href="?window=12h"):
+              a(href=withNewParam("window", "12h")):
                 text "12h"
               text " "
-              a(href="?window=24h"):
+              a(href=withNewParam("window", "24h")):
                 text "24h"
               text " "
-              a(href="?window=48h"):
+              a(href=withNewParam("window", "48h")):
                 text "48h"
               text " "
-              a(href="?window=7days"):
+              a(href=withNewParam("window", "7days")):
                 text "7d"
               text " "
-              a(href="?window=30days"):
+              a(href=withNewParam("window", "30days")):
                 text "30d"
+              button:
+                text "Update"
+                proc onclick(ev: Event; n: VNode) = loadChartData()
 
             section(class = "graph", id = "graph"):
               tdiv(class="chart-container", id="chart-div", style = style(StyleAttr.position, cstring"relative")): #position: relative; height:40vh; width:80vw"):
@@ -381,9 +420,8 @@ proc sensorsLoaded(httpStatus: int, response: cstring) =
   for i in 0 ..< lines.len div 2:
     let id: int = lines[i*2].parseInt
     let name: cstring = lines[i*2+1]
-    let s = Sensor(id: id, name: name)
+    let s = Sensor(id: id, name: $name)
     sensors.add(s)
-  redraw(kxi)
 
 proc fakeSensorsLoad() =
   ## generates dummy data when testing witout a live server
@@ -444,30 +482,40 @@ proc updateChart(labels: openarray[cstring], temperatures: seq[float]) =
 
     }
   }
-  clearCanvas(canvas)
-  chart = newChart(canvas.getContext2D(), options)
+  if chart == nil:
+    chart = newChart(canvas.getContext2D(), options)
+  else:
+    {.emit: """`chart`.data.labels.length = 0;"""}
+    for l in labels:
+      {.emit: """`chart`.data.labels.push(`l`);"""}
+
+    {.emit: """`chart`.data.datasets[0].data.length = 0;"""}
+    for d in data:
+      {.emit: """`chart`.data.datasets[0].data.push(`d`);"""}
+    chart.update()
+
 
 ## Current temperature
 
 proc currentTemperatureLoaded(httpStatus: int, response: cstring, sensor: int) =
   ## ajaxGet() callback
-  echo response
   let lines: seq[cstring] = response.split(LF)
-  currentTime = lines[0].parseInt
-  currentTemperature = lines[1].parseFloat
+  echo "current temperature + state for sensor=", sensor
+  echo lines
+  currentTime = lines[0].parseInt()
+  currentTemperature = lines[1].parseFloat()
   currentHvacMode =
     if   lines[2] == cstring"Heating": Heating
     elif lines[2] == cstring"Cooling": Cooling
     else: NoControl
-  currentHvacStatus = if lines[3] == cstring"On": On else: Off
-  mainSensorTemperature = lines[4].parseFloat
-  desiredTemperature = lines[5].parseFloat
-  upcomingTime = lines[6].parseInt
-  upcomingTemperature = lines[7].parseFloat
-  overrideTemperature = lines[8].parseFloat
-  overrideUntil = lines[9].parseInt
+  currentHvacStatus = if lines[3].strip() == "On": On else: Off
+  mainSensorTemperature = lines[4].strip().parseFloat()
+  desiredTemperature = lines[5].strip().parseFloat()
+  upcomingTime = lines[6].strip().parseInt()
+  upcomingTemperature = lines[7].strip().parseFloat()
+  overrideTemperature = lines[8].strip().parseFloat()
+  overrideUntil = lines[9].strip().parseInt()
   forceHvac = lines[10]
-  redraw(kxi)
 
 proc currentTemperatureLoaded(sensor: int): proc (httpStatus: int, response: cstring) =
   ## returns a closure that curries `sensor` parameter
@@ -536,9 +584,10 @@ proc fakeChartDataLoad() =
   chartDataLoaded(httpStatus = 200, response, sensor = currentSensor)
 
 proc loadChartData() =
+  #echo "loadChartData currentSensor=", currentSensor
   if chart != nil: chart.clear()
   if stubSensors:
-    discard setTimeout(fakeChartDataLoad, 0)
+    discard setTimeout(fakeChartDataLoad, 10)
   else:
     let now = epochTime().int
     let start = now - durationInSeconds(currentWindow)
@@ -552,8 +601,11 @@ proc postRender(data: RouterData) =
   if not initialized:
     loadSensors()
     periodicLoadCurrentTemperature()
+    reloadChartData = true
+    initialized = true
+  if reloadChartData:
     loadChartData()
-  initialized = true
+    reloadChartData = false
 
 setRenderer createDom, "ROOT", postRender
 
