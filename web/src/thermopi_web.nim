@@ -1,6 +1,6 @@
-import karax / [vdom, vstyles, kdom, karax, karaxdsl, kajax, jstrutils, compact, jjson, jdict]
+import karax / [vdom, vstyles, kdom, karax, karaxdsl, kajax, jstrutils, jjson]
 import jsffi except `&`
-import random, sequtils, strutils, times, strformat
+import random, sequtils, times, strformat
 import chartjs, momentjs, url_js
 import temperature_units, times
 
@@ -390,7 +390,7 @@ proc fakeSensorsLoad() =
   var str = cstring""
   str &= $1 & LF
   str &= "Living Room" & LF
-  str &= $2& LF
+  str &= $2 & LF
   str &= "Garage" & LF
   str &= $3 & LF
   str &= "Exterior" & LF
