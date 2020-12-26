@@ -169,7 +169,7 @@ proc createDom(data: RouterData): VNode =
   var userErrors = ""
 
   var params = initTable[string, string]()
-  if data.hashPart != nil:
+  if data.hashPart != nil and data.hashPart.len > 0:
     for param in ($data.hashPart)[1 .. ^1].split(","):
       let parts = param.split("=")
       if parts.len == 2: params[$parts[0]] = decodeUrl($parts[1])
@@ -188,7 +188,7 @@ proc createDom(data: RouterData): VNode =
 
   let beforeUnit = currentUnit
   currentUnit = block:
-    let unit = params.getOrDefault("unit", "")
+    let unit = params.getOrDefault("unit", "fahrenheit")
     if   unit == "celcius":    Celcius
     elif unit == "fahrenheit": Fahrenheit
     else:
