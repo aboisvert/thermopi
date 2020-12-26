@@ -400,18 +400,19 @@ proc createDom(data: RouterData): VNode =
             section(class = "graph", id = "graph"):
               tdiv(class="chart-container", id="chart-div", style = style(StyleAttr.position, cstring"relative")): #position: relative; height:40vh; width:80vw"):
                 canvas(id = "chart")
-        tdiv(class = "columns is-centered"):
-          tdiv(class = "column has-text-centered"):
-            text "Force HVAC"
-            button:
-              text "On"
-              proc onclick(ev: Event; n: VNode) = forceHvacOn()
-            button:
-              text "Off"
-              proc onclick(ev: Event; n: VNode) = forceHvacOff()
-            button:
-              text "Clear"
-              proc onclick(ev: Event; n: VNode) = clearForceHvac()
+        if defined(allowForceHvac):
+          tdiv(class = "columns is-centered"):
+            tdiv(class = "column has-text-centered"):
+              text "Force HVAC"
+              button:
+                text "On"
+                proc onclick(ev: Event; n: VNode) = forceHvacOn()
+              button:
+                text "Off"
+                proc onclick(ev: Event; n: VNode) = forceHvacOff()
+              button:
+                text "Clear"
+                proc onclick(ev: Event; n: VNode) = clearForceHvac()
 
 proc sensorsLoaded(httpStatus: int, response: cstring) =
   ## ajaxGet callback
