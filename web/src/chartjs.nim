@@ -10,8 +10,18 @@ import jsffi
 
 type Chart* = JsObject
 
-proc newChart*(canvas: Element, options: JsonNode): Chart {.importcpp: "new Chart(@)".}
+type Context2D* = JsObject
 
+proc newChart*(canvas: Context2D, options: JsonNode): Chart {.importcpp: "new Chart(@)".}
+
+proc getContext2D*(canvas: Element): Context2D =
+  {.emit: """`result` = `canvas`.getContext('2d');"""}
+
+proc clearCanvas*(canvas: Element) =
+  {.emit: """
+    var context = `canvas`.getContext('2d');
+    context.clearRect(0, 0, `canvas`.width, `canvas`.height);
+  """}
 
 ##
 ## Examples
@@ -29,7 +39,7 @@ proc newChart*(canvas: Element, options: JsonNode): Chart {.importcpp: "new Char
 ##
 
 proc temperatureChartExample(labels: seq[cstring], temperatures: seq[float]) =
-  let ctx = document.getElementById(cstring"myChart")
+  let canvas = document.getElementById(cstring"myChart")
   let options = %*{
     "type": "line",
     "data": {
@@ -46,6 +56,6 @@ proc temperatureChartExample(labels: seq[cstring], temperatures: seq[float]) =
       "responsive": false
     }
   }
-  discard newChart(ctx, options)
+  discard newChart(canvas.getContext2D(), options)
 
 {.pop.}

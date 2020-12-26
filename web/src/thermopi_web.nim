@@ -406,7 +406,7 @@ proc updateChart(labels: openarray[cstring], temperatures: seq[float]) =
   var data: seq[float] = temperatures
   if currentUnit == Fahrenheit:
     data = data.mapIt(celciusToFahrenheit(it))
-  let ctx = document.getElementById(cstring"chart")
+  let canvas = document.getElementById(cstring"chart")
   let options = %*{
     "type": "line",
     "data": {
@@ -444,7 +444,8 @@ proc updateChart(labels: openarray[cstring], temperatures: seq[float]) =
 
     }
   }
-  chart = newChart(ctx, options)
+  clearCanvas(canvas)
+  chart = newChart(canvas.getContext2D(), options)
 
 ## Current temperature
 
