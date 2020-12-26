@@ -175,16 +175,19 @@ proc createDom(data: RouterData): VNode =
       if parts.len == 2: params[$parts[0]] = decodeUrl($parts[1])
       else: userErrors &= "Invalid query param: " & param & "\n"
 
-  let window = params.getOrDefault("window", "24h")
-  if   window == "1h":     currentWindow = T1h
-  elif window == "12h":    currentWindow = T12h
-  elif window == "24h":    currentWindow = T24h
-  elif window == "48h":    currentWindow = T48h
-  elif window == "7days":  currentWindow = T7days
-  elif window == "30days": currentWindow = T30days
+  let windowBefore = currentWindow
+  let windowParam = params.getOrDefault("window", "24h")
+  if   windowParam == "1h":     currentWindow = T1h
+  elif windowParam == "12h":    currentWindow = T12h
+  elif windowParam == "24h":    currentWindow = T24h
+  elif windowParam == "48h":    currentWindow = T48h
+  elif windowParam == "7days":  currentWindow = T7days
+  elif windowParam == "30days": currentWindow = T30days
   else:
-    userErrors &= "Invalid window param: " & window
+    userErrors &= "Invalid window param: " & windowParam
     currentWindow = T24h
+  if currentWindow != windowBefore:
+    reloadChartData = true
 
   let beforeUnit = currentUnit
   currentUnit = block:
