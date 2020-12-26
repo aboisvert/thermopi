@@ -54,7 +54,12 @@ proc serializeCurrentState(sensorId: int): string =
   let latestMainSensorData    = getLatestSensorData(mainSensorId)
 
   result = newStringOfCap(1024)
-  result.add serializeSensorData(latestCurrentSensorData)
+  if latestCurrentSensorData.len == 0:
+    result.add "0\n"
+    result.add "0\n"
+  else:
+    result.add $latestCurrentSensorData[0].instant & "\n"
+    result.add $latestCurrentSensorData[0].temperature & "\n"
 
   result.add $controlMode & "\n" # currentHvacMode
   result.add $controlState.hvac & "\n" # currentHvacStatus
