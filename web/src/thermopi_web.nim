@@ -211,12 +211,8 @@ proc createDom(data: RouterData): VNode =
 
 
   proc withNewParam(name: string, value: string): string =
-    echo "params before ", params
     var newParams = params # copy
-    echo "add ", name, "=", value
     newParams[name] = value
-    echo "params after ", params
-    echo "new params after ", newParams
     var i = 0
     result = "#"
     for name, value in newParams:
