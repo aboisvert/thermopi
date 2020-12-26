@@ -233,7 +233,8 @@ proc createDom(data: RouterData): VNode =
       section(class = "hero is-medium is-dark"):
         tdiv(class = "container"):
           h1(class = "title"):
-            text "ThermoPi"
+            a(href="#"):
+              text "ThermoPi"
 
       section():
         tdiv(class = "is-centered"):
