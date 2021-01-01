@@ -1,0 +1,6 @@
+build/
+src/nimcache/
+main/nimcache/
+.secrets.env*
+sdkconfig.old
+*~
