@@ -1,4 +1,4 @@
-import jsffi
+import jsffi, strformat
 
 ##
 ## Trivial FFI for Javascript's builtin URL
@@ -20,3 +20,9 @@ proc queryParams*(): QueryParams =
 
 proc get*(params: QueryParams, param: cstring): cstring =
   cast[cstring](params.wrapped.get(param))
+
+proc httpApi*(): cstring =
+ let protocol = cast[cstring](location.protocol)
+ let host = cast[cstring](location.hostname)
+ let port = cast[cstring](location.port)
+ fmt"{protocol}//{host}:{port}/api"

@@ -3,6 +3,7 @@ import jsffi except `&`
 import random, sequtils, times, strformat, uri, tables, options
 import chartjs, momentjs
 import temperature_units, times
+import url_js
 
 type
   Views = enum
@@ -19,10 +20,12 @@ type
 
   HvacStatus = enum Off, On
 
+#[
 const
   host {.strdefine.} = if defined(local): "localhost" else: "thermopi"
   port {.strdefine.} = "8080"
   httpApi = fmt"http://{host}:{port}/api"
+]#
 
 let
   LF = "\n".cstring
@@ -97,7 +100,7 @@ proc setForceHvac(newState: cstring) =
     forceHvac = newState
     afterForceHvac(200, "")
   else:
-    ajaxPost(httpApi & "/forceHvac", @[], newState, afterForceHvac)
+    ajaxPost(httpApi() & "/forceHvac", @[], newState, afterForceHvac)
 
 proc clearForceHvac() = setForceHvac("")
 proc forceHvacOn()    = setForceHvac("On")
@@ -120,7 +123,7 @@ proc setOverride(newTemperature: float, newTimeUntil: int64) =
     var body = ""
     body &= $newTemperature & "\n"
     body &= $newTimeUntil & "\n"
-    ajaxPost(httpApi & "/override", @[], body, afterOverrideChange)
+    ajaxPost(httpApi() & "/override", @[], body, afterOverrideChange)
 
 proc clearOverride() = setOverride(0.0, 0)
 
@@ -239,7 +242,7 @@ proc createDom(data: RouterData): VNode =
       section():
         tdiv(class = "is-centered"):
           p:
-            text httpApi
+            text httpApi()
         if userErrors != "":
           tdiv(class = "is-centered"):
             p:
@@ -439,7 +442,7 @@ proc loadSensors() =
   if stubSensors:
     discard setTimeout(fakeSensorsLoad, 0)
   else:
-    ajaxGet(httpApi & "/sensors", @[], sensorsLoaded)
+    ajaxGet(httpApi() & "/sensors", @[], sensorsLoaded)
 
 proc updateChart(labels: openarray[cstring], temperatures: seq[float]) =
   var data: seq[float] = temperatures
@@ -547,7 +550,7 @@ proc loadCurrentTemperature() =
   if stubSensors:
     discard setTimeout(fakeCurrentTemperatureLoad, 0)
   else:
-    ajaxGet(httpApi & "/current/" & $currentSensor, @[], currentTemperatureLoaded(currentSensor))
+    ajaxGet(httpApi() & "/current/" & $currentSensor, @[], currentTemperatureLoaded(currentSensor))
 
 proc periodicLoadCurrentTemperature() =
   discard setTimeout(periodicLoadCurrentTemperature, 30000)
@@ -596,7 +599,7 @@ proc loadChartData() =
     var params = cstring"?"
     params &= "start=" & $start
     params &= "&end=" & $`end`
-    ajaxGet(httpApi & "/temperature/" & $currentSensor & params, @[], chartDataLoaded(currentSensor))
+    ajaxGet(httpApi() & "/temperature/" & $currentSensor & params, @[], chartDataLoaded(currentSensor))
 
 proc postRender(data: RouterData) =
   if not initialized:
