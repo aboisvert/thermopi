@@ -10,4 +10,5 @@ bin           = @["hvac_controller"]
 
 # Dependencies
 requires "nim >= 1.4.2"
-requires "https://github.com/elcritch/nesper#devel"
+#requires "https://github.com/elcritch/nesper#devel"
+requires "https://github.com/aboisvert/nesper#fix_createTimer"
