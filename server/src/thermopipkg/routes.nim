@@ -246,6 +246,3 @@ proc handleHttpRequest*(ctx: HttpCtx, headers: StringTableRef) {.gcsafe, raises:
     except:
       let msg = getCurrentExceptionMsg()
       error("handleHttpRequest error: " & msg, ctx)
-
-proc errorNotifier*(msg: string) =
-  echo "thermopi error notifier: " & msg

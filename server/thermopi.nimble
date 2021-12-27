@@ -10,8 +10,8 @@ bin           = @["thermopi"]
 
 # Dependencies
 
-requires "nim >= 1.4.0"
-requires "https://github.com/aboisvert/GuildenStern#thermopi-stable"
+requires "nim >= 1.4.8"
+requires "guildenStern >= 5.0.0"
 
 task test, "Runs the test suite":
   exec "nim c -r tests/tester"
