@@ -20,13 +20,6 @@ type
 
   HvacStatus = enum Off, On
 
-#[
-const
-  host {.strdefine.} = if defined(local): "localhost" else: "thermopi"
-  port {.strdefine.} = "8080"
-  httpApi = fmt"http://{host}:{port}/api"
-]#
-
 let
   LF = "\n".cstring
 
@@ -437,6 +430,7 @@ proc fakeSensorsLoad() =
   str &= $3 & LF
   str &= "Exterior" & LF
   sensorsLoaded(200, str)
+  redraw()
 
 proc loadSensors() =
   if stubSensors:
@@ -544,7 +538,11 @@ proc fakeCurrentTemperatureLoad() =
   response &= $randomCelcius() & LF # desiredTemperature
   response &= $now & LF # upcomingTime
   response &= $randomCelcius() & LF # upcomingTemperature
+  response &= "0" & LF # overrideTempeature
+  response &= "0" & LF # overrideUntil
+  response &= "On" & LF # HvacStatus
   currentTemperatureLoaded(httpStatus = 200, response, sensor = currentSensor)
+  redraw()
 
 proc loadCurrentTemperature() =
   if stubSensors:
@@ -586,6 +584,7 @@ proc fakeChartDataLoad() =
     response &= $(start + i * samplePeriod) & LF
     response &= $randomCelcius() & LF
   chartDataLoaded(httpStatus = 200, response, sensor = currentSensor)
+  redraw()
 
 proc loadChartData() =
   #echo "loadChartData currentSensor=", currentSensor
