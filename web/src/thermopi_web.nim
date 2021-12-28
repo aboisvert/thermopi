@@ -231,37 +231,45 @@ proc createDom(data: RouterData): VNode =
           h1(class = "title"):
             a(href="#"):
               text "ThermoPi"
+          text httpApi()
 
-      section():
-        tdiv(class = "is-centered"):
-          p:
-            text httpApi()
+      # errors
+      section(class = "is-large", style=style(StyleAttr.height, cstring"15px")):
+        text ""
         if userErrors != "":
-          tdiv(class = "is-centered"):
+          tdiv(class = "container"):
             p:
               text userErrors
 
-      # columns
-      section():
+      # 3 columns
+      section(style=style(StyleAttr.padding, cstring"10px")):
         tdiv(class = "columns is-centered"):
 
-          tdiv(class = "column"):
-            tdiv(class = "card"):
-              tdiv(class = "card-content"):
-                section(class = "sensors", id = "sensors"):
-                  tdiv(class = "container"):
-                    ol:
-                      for s in sensors:
-                        li(value = $s.id):
-                          a(href=withNewParam("sensor", s.name)):
-                            text $s.name
-                            if currentSensor == s.id:
-                              text " [*]"
+          # use the 12-column system
+          # https://bulma.io/documentation/columns/sizes/#12-columns-system
+          #
+          # e.g. is-2 is 2 x 12th
+          #
 
-          tdiv(class = "column"):
-            tdiv(class = "card"):
-              tdiv(class = "card-content has-text-centered"):
-                section(class = "current-sensor"):
+          tdiv(class = "column is-2"):
+            section(class = "sensors", id = "sensors"):
+              tdiv(class = "container"):
+                ol:
+                  for s in sensors:
+                    li(value = $s.id):
+                      a(href=withNewParam("sensor", s.name)):
+                        text $s.name
+                        if currentSensor == s.id:
+                          text " [*]"
+
+          tdiv(class = "column is-1"):
+            text ""
+
+          tdiv(class = "column is-5"):
+            tdiv(class = "container has-text-centered"):
+              tdiv(class = "panel"):
+                #section(class = "current-sensor is-size-5 is-medium"):
+                p(class = "panel-heading is-info"):
                   text getCurrentSensor().name
                 section(class = "current-temperature is-size-1"):
                   tdiv(id="currentTemperature"):
@@ -281,9 +289,10 @@ proc createDom(data: RouterData): VNode =
                       a(href=withNewParam("unit", "celcius")):
                         text "[Switch to Celcius]"
 
-          tdiv(class = "column"):
-            tdiv(class = "card"):
-              tdiv(class = "card-content has-text-centered"):
+          tdiv(class = "column is-1"):
+            text ""
+
+          tdiv(class = "column is-2"):
                 section(class = "current-hvac-mode"):
                   text $currentHvacMode & ": " & $currentHvacStatus
                 section(class = "desired-temperature"):
@@ -300,7 +309,7 @@ proc createDom(data: RouterData): VNode =
                         proc onclick(ev: Event; n: VNode) = overrideAdjustTemperature(-1)
                   if forceHvac != cstring"":
                     tdiv(id="forceHvac"):
-                      strong:
+                      strong(class="has-text-danger"):
                         text "Force HVAC: " & forceHvac
                         button:
                           text "Clear"
@@ -312,7 +321,7 @@ proc createDom(data: RouterData): VNode =
                       text fromUnix(upcomingTime).format(cstring"dddd, h:mm a")
                   else:
                     tdiv(id="overrideTemperature"):
-                      strong:
+                      strong(class="has-text-info"):
                         text "Override: " & format(overrideTemperature, currentUnit)
                       button:
                         text "+1"
@@ -341,7 +350,8 @@ proc createDom(data: RouterData): VNode =
                         proc onclick(ev: Event; n: VNode) = clearOverride()
 
       # actions
-      section():
+      section(style=style(StyleAttr.padding, cstring"20px")):
+
         tdiv(class = "columns is-centered"):
 
           tdiv(class = "column has-text-centered"):

@@ -7,7 +7,7 @@ if test -n "$STUBS"
 end
 
 
-set WATCHER "ls -d src/ static | entr -c -c -z -p -d true"
+set WATCHER "find src/ static/ | entr -c -c -z -p true"
 # on OSX
 # set WATCHER fswatch --one-event --recursive src
 
